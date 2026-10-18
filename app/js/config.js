@@ -42,7 +42,7 @@ const DEFAULTS = {
   format: "16:9 1920×1080", text: "Litgrid", ...FORMATS["16:9 1920×1080"].layout, volume: 0.45,
   light: "sparkle", spin: 0, followMouse: false, smoothing: 0.85,
   trail: true, trailDur: 1.6, trailStrength: 0.8, trailTaper: 0.5, trailSpacing: 0.25,
-  deform: true, deformAmount: 1, deformMax: 2.2, ambient: 0.04, overlay: true, mirror: true,
+  deform: true, deformAmount: 0.25, deformMax: 2.2, ambient: 0.04, overlay: true, mirror: true,
   stepX: 12, stepY: 12, gapX: 2, gapY: 4,
   cellShape: "square", mode: "fixed", offBelow: 0.18, hollowAbove: 0.62, outline: 2, dot: 3, core: 0.55,
   colorSource: "palette", contrast: 1, ...PRESETS["Terracotta on night"], scanlines: 0,
