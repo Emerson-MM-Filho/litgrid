@@ -40,6 +40,21 @@ setting as JSON.
 
 Settings are kept in the browser. "Reset" goes back to the defaults.
 
+## For AI agents (WebMCP)
+
+The page registers [WebMCP](https://github.com/webmachinelearning/webmcp) tools,
+so an AI agent running in the browser can set it up for you:
+
+- `get_settings`: every current setting, the color presets and the output size.
+- `set_settings`: change any setting from the panel; returns what was applied
+  and what was ignored, and why.
+- `apply_color_preset`: one of the named palettes.
+- `set_custom_svg`: your own SVG as the light shape or the cell shape.
+- `reset_settings`: back to the defaults.
+
+In browsers without WebMCP nothing changes. To try it in Chrome, turn on
+`chrome://flags/#enable-webmcp-testing`.
+
 ## License
 
 [MIT](LICENSE)
