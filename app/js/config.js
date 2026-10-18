@@ -124,3 +124,11 @@ if (!FORMATS[S.format]) S.format = DEFAULTS.format;   // saved format no longer 
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
 
 if (matchMedia("(prefers-reduced-motion: reduce)").matches) S.animate = false;
+
+// the SVG behind each shape setting, built-in or custom; reports[target] hears how loading it went
+const reports = {};
+const SVG_KEY = { light: "svgLight", cell: "svgCell" }, SEL_KEY = { light: "light", cell: "cellShape" }, LIB = { light: LIGHT_SHAPES, cell: CELL_SHAPES };
+function svgText(target) {
+  const sel = S[SEL_KEY[target]];
+  return sel === "custom" ? S[SVG_KEY[target]] : (LIB[target][sel] || Object.values(LIB[target])[0]).svg;
+}

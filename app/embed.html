@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Litgrid embed</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #0c0a09; color: #e7e5e4; font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 48px 16px; }
+  .hero { display: grid; gap: 32px; align-items: center; min-height: 80vh; }
+  @media (min-width: 768px) { .hero { grid-template-columns: 1fr 1fr; } }
+  canvas { width: 100%; aspect-ratio: 4 / 3; display: block; border-radius: 8px; }
+  .filler { height: 120vh; }
+  code { font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <div>
+      <h1>Litgrid on another page</h1>
+      <p>The renderer without the editor. Move the mouse, or drag a finger sideways, over the grid; a vertical swipe still scrolls the page. When the pointer leaves, the light eases back to its drift, and nothing is drawn while the grid is off screen.</p>
+      <p><a href="./">Open the editor</a></p>
+    </div>
+    <canvas id="lit" aria-label="Lit grid"></canvas>
+  </section>
+  <div class="filler"><p>Scroll down and back: the drawing stops while the grid is out of view.</p></div>
+</main>
+
+<script src="js/config.js"></script>
+<script src="js/render.js"></script>
+<script src="js/embed.js"></script>
+<script>
+  // any part of the JSON from "Copy settings"; the colors here are a hand-picked palette, not a preset
+  Litgrid.mount(document.getElementById("lit"), {
+    settings: {
+      text: "", light: "hourglass", followMouse: true, drift: 0.2, shapeX: 0.5, shapeY: 0.5, shapeSize: 0.3,
+      stepX: 14, stepY: 14, gapX: 3, gapY: 3,
+      bg: "#0c0a09", c0: "#1c1917", c1: "#44403c", c2: "#a8a29e", c3: "#e7e5e4", c4: "#ffffff",
+    },
+  });
+</script>
+</body>
+</html>

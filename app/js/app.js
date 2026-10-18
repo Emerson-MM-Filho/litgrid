@@ -29,10 +29,12 @@ function changed() {
 cv.addEventListener("pointermove", (e) => {
   const b = cv.getBoundingClientRect();
   mouse.tx = (e.clientX - b.left) / b.width * W; mouse.ty = (e.clientY - b.top) / b.height * H;
-  if (!mouse.on) { mouse.x = mouse.tx; mouse.y = mouse.ty; mouse.on = true; }
+  if (!mouse.on) { if (!mouse.back) { mouse.x = mouse.tx; mouse.y = mouse.ty; } mouse.on = true; mouse.back = false; }
   if (S.followMouse && !S.animate) dirty = true;
 });
 cv.addEventListener("pointerdown", (e) => { if (S.followMouse) cv.setPointerCapture(e.pointerId); });
+cv.addEventListener("pointerleave", releasePointer);   // the shape eases back to its drift
+cv.addEventListener("pointercancel", releasePointer);
 
 // ---------- buttons ----------
 const playBtn = document.getElementById("play");

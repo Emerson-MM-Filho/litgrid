@@ -34,6 +34,7 @@ Everything the page needs is in `app/`:
 - `js/export.js`: PNG, video and the GIF encoder.
 - `js/webmcp.js`: the tools for AI agents.
 - `js/app.js`: the frame loop, the buttons, media and webcam, and the start.
+- `js/embed.js` and `embed.html`: the renderer on another page, without the editor.
 
 They are plain scripts, not ES modules, so the page still opens straight from
 disk. They share their top-level names and load in the order listed in
@@ -65,6 +66,39 @@ recorded in real time, for the length you pick; the GIF is scaled down to the
 width you pick.
 
 Settings are kept in the browser. "Reset" goes back to the defaults.
+
+## Embedding
+
+`embed.html` shows the renderer on a page of its own, without the editor. Load three
+scripts and mount it on a canvas:
+
+```html
+<canvas id="lit"></canvas>
+<script src="js/config.js"></script>
+<script src="js/render.js"></script>
+<script src="js/embed.js"></script>
+<script>
+  const lg = Litgrid.mount(document.getElementById("lit"), {
+    settings: { text: "", followMouse: true, bg: "#0c0a09", c4: "#ffffff" },
+    media: "scene.png",
+  });
+</script>
+```
+
+- `settings` takes the JSON from "Copy settings", whole or in part, over the defaults.
+  Every color is a setting, so the theme is whatever you pass. Nothing is read from or
+  saved to the browser.
+- `media` is an image or video URL (another origin needs CORS), or an `<img>`, `<video>`
+  or `<canvas>`.
+- `size` is the drawing size in pixels; by default it is the canvas' displayed size
+  times the pixel ratio.
+
+On a phone the page keeps scrolling: a vertical swipe scrolls, and a tap or a sideways
+drag moves the light. When the pointer leaves, the light eases back to its drift.
+Nothing is drawn while the canvas is off screen, and with reduced motion the canvas
+shows a still frame. `lg.ready` resolves after the first full frame, `lg.update()`
+changes settings, `lg.snapshot()` returns the frame as a data URL, and `lg.stop()`
+ends it. There is one canvas per page, because the renderer keeps its state in globals.
 
 ## For AI agents (WebMCP)
 

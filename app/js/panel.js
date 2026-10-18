@@ -1,11 +1,6 @@
 // ---------- panel ----------
 const panel = document.getElementById("panel");
-const inputs = {}, editors = {}, reports = {};
-const SVG_KEY = { light: "svgLight", cell: "svgCell" }, SEL_KEY = { light: "light", cell: "cellShape" }, LIB = { light: LIGHT_SHAPES, cell: CELL_SHAPES };
-function svgText(target) {
-  const sel = S[SEL_KEY[target]];
-  return sel === "custom" ? S[SVG_KEY[target]] : (LIB[target][sel] || Object.values(LIB[target])[0]).svg;
-}
+const inputs = {}, editors = {};
 function fmt(v, step) { return step >= 1 ? String(Math.round(v)) : Number(v).toFixed(2); }
 function buildPanel() {
   panel.innerHTML = "";

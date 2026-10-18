@@ -1,12 +1,25 @@
 // ---------- render ----------
-const cv = document.getElementById("stage"), ctx = cv.getContext("2d");
+// the app draws on #stage; the embed points cv and ctx at its own canvas
+let cv = document.getElementById("stage"), ctx = cv && cv.getContext("2d");
 // only the canvases read back with getImageData ask for a CPU backing; the rest stay on the GPU
 const mk = (read = false) => { const c = document.createElement("canvas"); return [c, c.getContext("2d", read ? { willReadFrequently: true } : undefined)]; };
 const [scene, sc] = mk(), [grid, gc] = mk(true), [cells, cc] = mk(), [dots, dc] = mk(), [b1, b1c] = mk(), [b2, b2c] = mk(), [b3, b3c] = mk();
 let bgRGB = [0, 0, 0];
 let W = 1920, H = 1080, cols = 0, rows = 0, noise = new Float32Array(0), frame = 0, t = 0;
+let sizeOverride = null;   // [w, h] that replaces the format's size (the embed sets it)
 let media = null, mediaW = 0, mediaH = 0, mediaCam = false, stream = null;
-const mouse = { x: 0, y: 0, tx: 0, ty: 0, on: false };
+// on: the pointer is over the stage; back: it left, and the shape glides from where it was (fx, fy) to its drift
+const mouse = { x: 0, y: 0, tx: 0, ty: 0, on: false, back: false, fx: 0, fy: 0, at: 0 };
+const BACK_SECS = 0.8;
+function releasePointer() {
+  if (!mouse.on) return;
+  Object.assign(mouse, { on: false, back: true, fx: mouse.x, fy: mouse.y, at: performance.now() });
+  dirty = true;
+}
+const following = () => S.followMouse && (mouse.on || mouse.back);
+function driftPos() {
+  return [S.shapeX * W + S.drift * W * Math.sin(t * 2 * Math.PI / 7), S.shapeY * H + S.drift * H * 0.5 * Math.cos(t * 2 * Math.PI / 9)];
+}
 const svgs = { light: { img: null, w: 1, h: 1, ver: 0, stretch: false, src: null }, cell: { img: null, w: 1, h: 1, ver: 0, stretch: false, src: null } };
 const [lightBuf, lb] = mk();
 const [maskBuf, mb] = mk(true);
@@ -121,7 +134,7 @@ function buildLut() {
   }
 }
 function sizeAll() {
-  [W, H] = (FORMATS[S.format] || FORMATS[DEFAULTS.format]).size;
+  [W, H] = sizeOverride || (FORMATS[S.format] || FORMATS[DEFAULTS.format]).size;
   if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
   cols = Math.max(1, Math.floor(W / S.stepX)); rows = Math.max(1, Math.floor(H / S.stepY));
   scene.width = cols * 3; scene.height = rows * 3;
@@ -161,10 +174,10 @@ function drawScene() {
   if (overlay && S.light !== "none") {
     const r = Math.max(1, S.shapeSize * Math.min(W, H) * (1 + S.pulse * Math.sin(t * 2 * Math.PI / 2.4)));
     let x, y;
-    if (S.followMouse && mouse.on) { x = mouse.x; y = mouse.y; }
-    else { x = S.shapeX * W + S.drift * W * Math.sin(t * 2 * Math.PI / 7); y = S.shapeY * H + S.drift * H * 0.5 * Math.cos(t * 2 * Math.PI / 9); }
+    if (following()) { x = mouse.x; y = mouse.y; }
+    else [x, y] = driftPos();
     updateMotion(x, y);
-    if (S.trail && S.followMouse && mouse.on) drawTrail(x, y, r);
+    if (S.trail && following()) drawTrail(x, y, r);
     else { trail.length = 0; drawLight(x, y, r); }
   }
   if (overlay && S.text) {
@@ -185,7 +198,13 @@ function drawScene() {
 // each cell is the SVG silhouette in its color; a hollow cell is the same silhouette with the core shrunk inside it
 
 function render() {
-  if (S.followMouse && mouse.on) {
+  if (S.followMouse && mouse.back) {
+    // a fixed-length glide: chasing the moving drift with the follow delay would always lag behind it
+    const e = S.animate ? Math.min(1, (performance.now() - mouse.at) / 1000 / BACK_SECS) : 1, s = e * e * (3 - 2 * e);
+    const [dx, dy] = driftPos();
+    mouse.x = mouse.fx + (dx - mouse.fx) * s; mouse.y = mouse.fy + (dy - mouse.fy) * s;
+    if (e >= 1) mouse.back = false;
+  } else if (following()) {
     const k = S.animate ? 1 - S.smoothing : 1;
     mouse.x += (mouse.tx - mouse.x) * k; mouse.y += (mouse.ty - mouse.y) * k;
   }
