@@ -9,18 +9,21 @@ the 2D canvas.
 
 Live at https://emerson-mm-filho.github.io/litgrid/ (the webcam works there).
 
-There is no build step and there are no dependencies: open `index.html` in a
-browser.
+There is no build step and there are no dependencies: the app lives in `app/`,
+open `app/index.html` in a browser.
 
 On your machine, the webcam only works when the page is served from `localhost`:
 
 ```sh
+cd app
 python3 -m http.server 8765
 ```
 
 Then open http://localhost:8765.
 
 ## Files
+
+Everything the page needs is in `app/`:
 
 - `index.html`: the page markup.
 - `style.css`: the layout and the light and dark frames.
@@ -35,6 +38,9 @@ Then open http://localhost:8765.
 They are plain scripts, not ES modules, so the page still opens straight from
 disk. They share their top-level names and load in the order listed in
 `index.html`.
+
+`.github/workflows/pages.yml` publishes `app/` to GitHub Pages on every push to
+`main`.
 
 ## What you can change
 
