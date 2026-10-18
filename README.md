@@ -89,7 +89,8 @@ scripts and mount it on a canvas:
   Every color is a setting, so the theme is whatever you pass. Nothing is read from or
   saved to the browser.
 - `media` is an image or video URL (another origin needs CORS), or an `<img>`, `<video>`
-  or `<canvas>`.
+  or `<canvas>`. A `<canvas>` can change size later, as when the page redraws it to fit:
+  its size is read on every frame.
 - `size` is the drawing size in pixels; by default it is the canvas' displayed size
   times the pixel ratio.
 

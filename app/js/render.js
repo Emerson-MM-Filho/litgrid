@@ -209,6 +209,8 @@ function drawScene() {
   sc.fillStyle = "#000"; sc.fillRect(0, 0, scene.width, scene.height);
   sc.setTransform(scene.width / W, 0, 0, scene.height / H, 0, 0);
   sc.imageSmoothingQuality = "high";
+  // a canvas source can be resized after it was handed over (a page that redraws it to fit), so its size is read live
+  if (media && media.tagName === "CANVAS") { mediaW = media.width; mediaH = media.height; }
   if (media && mediaW) {
     const s = Math.max(W / mediaW, H / mediaH), w = mediaW * s, h = mediaH * s;
     sc.save();
