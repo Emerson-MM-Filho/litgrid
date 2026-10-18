@@ -28,12 +28,25 @@ const [lightBuf, lb] = mk(), [lightSq, lq] = mk();
 let lightAspect = [1, 1];
 // a single pulse the page asks for (a click, say): the shape swells and brightens once, then settles
 let burstAt = -1e9;
-function burstLevel() {
+function pulseLevel() {
   const p = (performance.now() - burstAt) / 1000 / S.burstSecs;
   if (p < 0 || p >= 1) return 0;
   return p < 0.25 ? Math.sin(Math.PI / 2 * p / 0.25) : 0.5 + 0.5 * Math.cos(Math.PI * (p - 0.25) / 0.75);
 }
-const bursting = () => performance.now() - burstAt < S.burstSecs * 1000 + 100;
+// a held press (a mouse button kept down): the shape swells in the pulse's first quarter and stays big
+// until the release, then settles in the other three quarters, from wherever it was
+const press = { down: false, at: -1e9, from: 0 };
+function pressLevel() {
+  const q = (performance.now() - press.at) / 1000 / S.burstSecs;
+  if (press.down) return press.from + (1 - press.from) * Math.sin(Math.PI / 2 * Math.min(1, q / 0.25));
+  return q >= 0.75 ? 0 : press.from * (0.5 + 0.5 * Math.cos(Math.PI * q / 0.75));
+}
+function setPress(down) {
+  if (down === press.down) return;
+  press.from = pressLevel(); press.down = down; press.at = performance.now();
+}
+const burstLevel = () => Math.max(pulseLevel(), pressLevel());
+const bursting = () => performance.now() - burstAt < S.burstSecs * 1000 + 100 || performance.now() - press.at < S.burstSecs * 1000 + 100;
 const [maskBuf, mb] = mk(true);
 const maskCache = new Map(); let maskVer = -1;
 let cellImg = null, dotImg = null, cell32 = null, dot32 = null;

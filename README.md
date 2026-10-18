@@ -101,7 +101,9 @@ sections with different backgrounds. `lg.resize([w, h])` follows the window.
 
 `lg.burst()` swells and brightens the shape once, for a click on a button: `burstSize`,
 `burstGlow` and `burstSecs` set how much it grows, how much brighter it gets and for how
-long (in the editor, a click on the stage plays it). `stretchX` and `stretchY` stretch the
+long. `lg.press(true)` swells it the same way and holds it there, for as long as a mouse
+button stays down; `lg.press(false)` lets it settle from wherever it was (in the editor,
+holding the stage plays it). `stretchX` and `stretchY` stretch the
 shape without stretching its corners, so a round light becomes a rounded bar with the same
 falloff: to wrap the light around a button, set the size to half the button's height and
 stretch the width by the rest. The trail, the deformation and the burst follow the

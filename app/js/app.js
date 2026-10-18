@@ -32,9 +32,11 @@ cv.addEventListener("pointermove", (e) => {
   if (!mouse.on) { if (!mouse.back) { mouse.x = mouse.tx; mouse.y = mouse.ty; } mouse.on = true; mouse.back = false; }
   if (S.followMouse && !S.animate) dirty = true;
 });
-cv.addEventListener("pointerdown", (e) => { if (S.followMouse) cv.setPointerCapture(e.pointerId); burstAt = performance.now(); });
-cv.addEventListener("pointerleave", releasePointer);   // the shape eases back to its drift
-cv.addEventListener("pointercancel", releasePointer);
+// holding a button on the stage swells the shape and keeps it big until the release (press in the embed)
+cv.addEventListener("pointerdown", (e) => { if (S.followMouse) cv.setPointerCapture(e.pointerId); setPress(true); });
+cv.addEventListener("pointerup", () => setPress(false));
+cv.addEventListener("pointerleave", (e) => { setPress(false); releasePointer(e); });   // the shape eases back to its drift
+cv.addEventListener("pointercancel", (e) => { setPress(false); releasePointer(e); });
 
 // ---------- buttons ----------
 const playBtn = document.getElementById("play");
