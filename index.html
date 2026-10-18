@@ -165,7 +165,7 @@ const DEFAULTS = {
   stepX: 12, stepY: 12, gapX: 2, gapY: 4,
   cellShape: "square", mode: "fixed", offBelow: 0.18, hollowAbove: 0.62, outline: 2, dot: 3, core: 0.55,
   colorSource: "palette", contrast: 1, ...PRESETS["Terracotta on night"], scanlines: 0,
-  animate: true, fps: 24, pulse: 0.06, drift: 0, flicker: 0.05, flickerEvery: 3,
+  animate: true, fps: 24, fpsUnlimited: false, pulse: 0.06, drift: 0, flicker: 0.05, flickerEvery: 3,
 };
 
 const SCHEMA = [
@@ -227,6 +227,7 @@ const SCHEMA = [
   ["Motion", [
     ["animate", "check", "Animate"],
     ["fps", "range", "Frames per second", 4, 60, 1],
+    ["fpsUnlimited", "check", "Unlimited fps (as fast as the screen refreshes)"],
     ["pulse", "range", "Shape pulse", 0, 0.4, 0.01],
     ["drift", "range", "Shape drift", 0, 0.4, 0.01],
     ["flicker", "range", "Cell flicker", 0, 0.5, 0.01],
@@ -654,7 +655,7 @@ function loop(now) {
   const dt = Math.min(0.25, (now - last) / 1000 || 0); last = now;
   if (S.animate) {
     acc += dt; t += dt;
-    const step = 1 / S.fps;
+    const step = S.fpsUnlimited ? 0 : 1 / S.fps;
     if (acc >= step - 0.002) {   // keep the remainder, so the cap is reached on any refresh rate
       acc = Math.min(acc - step, step); frame++;
       if (frame % S.flickerEvery === 0) reroll();
