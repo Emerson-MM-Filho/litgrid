@@ -11,7 +11,7 @@ function loop(now) {
       if (frame % S.flickerEvery === 0) reroll();
       render(); fpsN++; dirty = false;
     }
-  } else if (dirty || trail.length > 1 || (dfm && dfm.s > 1.01) || (media && media.tagName === "VIDEO" && !media.paused)) { render(); dirty = false; }
+  } else if (dirty || bursting() || trail.length > 1 || (dfm && dfm.s > 1.01) || (media && media.tagName === "VIDEO" && !media.paused)) { render(); dirty = false; }
   if (rec) rec.tick(now);
   fpsT += dt; if (fpsT >= 1) { fpsReal = fpsN; fpsN = 0; fpsT = 0; }
   stat.textContent = `${cols}×${rows} cells · ${W}×${H} px${S.animate ? ` · ${fpsReal} fps` : ""}`;
@@ -32,7 +32,7 @@ cv.addEventListener("pointermove", (e) => {
   if (!mouse.on) { if (!mouse.back) { mouse.x = mouse.tx; mouse.y = mouse.ty; } mouse.on = true; mouse.back = false; }
   if (S.followMouse && !S.animate) dirty = true;
 });
-cv.addEventListener("pointerdown", (e) => { if (S.followMouse) cv.setPointerCapture(e.pointerId); });
+cv.addEventListener("pointerdown", (e) => { if (S.followMouse) cv.setPointerCapture(e.pointerId); burstAt = performance.now(); });
 cv.addEventListener("pointerleave", releasePointer);   // the shape eases back to its drift
 cv.addEventListener("pointercancel", releasePointer);
 

@@ -21,7 +21,19 @@ function driftPos() {
   return [S.shapeX * W + S.drift * W * Math.sin(t * 2 * Math.PI / 7), S.shapeY * H + S.drift * H * 0.5 * Math.cos(t * 2 * Math.PI / 9)];
 }
 const svgs = { light: { img: null, w: 1, h: 1, ver: 0, stretch: false, src: null }, cell: { img: null, w: 1, h: 1, ver: 0, stretch: false, src: null } };
-const [lightBuf, lb] = mk();
+const [lightBuf, lb] = mk(), [lightSq, lq] = mk();
+// a stretched shape keeps its four quarters as corners and stretches the line through its middle (nine
+// slices), so a round light becomes a rounded bar with the same falloff. lightAspect is the stamp's width
+// and height over its unstretched size
+let lightAspect = [1, 1];
+// a single pulse the page asks for (a click, say): the shape swells and brightens once, then settles
+let burstAt = -1e9;
+function burstLevel() {
+  const p = (performance.now() - burstAt) / 1000 / S.burstSecs;
+  if (p < 0 || p >= 1) return 0;
+  return p < 0.25 ? Math.sin(Math.PI / 2 * p / 0.25) : 0.5 + 0.5 * Math.cos(Math.PI * (p - 0.25) / 0.75);
+}
+const bursting = () => performance.now() - burstAt < S.burstSecs * 1000 + 100;
 const [maskBuf, mb] = mk(true);
 const maskCache = new Map(); let maskVer = -1;
 let cellImg = null, dotImg = null, cell32 = null, dot32 = null;
@@ -55,30 +67,42 @@ function fitSvg(g, o, bw, bh) {
   if (!o.stretch) { const ar = o.w / o.h; if (ar > bw / bh) h = bw / ar; else w = bh * ar; }
   g.drawImage(o.img, (bw - w) / 2, (bh - h) / 2, w, h);
 }
-function drawLight(x, y, r) {
+function drawLight(x, y, r, glow = 1) {
   if (!prepLight(r)) return;
-  stampLight(x, y, r, 1, dfm);
+  stampLight(x, y, r, glow, dfm);
 }
 // the shape is rasterized once per frame; the trail stamps the same image many times
 function prepLight(r) {
   if (!svgs.light.img) return false;
-  const size = Math.max(2, Math.ceil(2 * r * scene.width / W));
-  lightBuf.width = size; lightBuf.height = size;
-  fitSvg(lb, svgs.light, size, size);
+  const k = scene.width / W, half = Math.max(1, Math.ceil(r * k)), size = 2 * half + 1;   // odd: one column and row in the middle
+  lightSq.width = size; lightSq.height = size;
+  fitSvg(lq, svgs.light, size, size);
   if (S.svgMode === "silhouette") {
-    lb.globalCompositeOperation = "source-in";
-    const g = lb.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size * 0.6);
+    lq.globalCompositeOperation = "source-in";
+    const g = lq.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size * 0.6);
     g.addColorStop(0, "#fff"); g.addColorStop(1, "#6a6a6a");
-    lb.fillStyle = g; lb.fillRect(0, 0, size, size);
+    lq.fillStyle = g; lq.fillRect(0, 0, size, size);
   }
+  const m = Math.min(W, H), ex = Math.round(Math.max(0, S.stretchX) * m * k), ey = Math.round(Math.max(0, S.stretchY) * m * k);
+  const w = size + ex, h = size + ey;
+  lightBuf.width = w; lightBuf.height = h;
+  if (!ex && !ey) lb.drawImage(lightSq, 0, 0);
+  else {
+    // source and target columns: left quarter, the middle column stretched, right quarter (rows the same)
+    const sx = [0, half, half + 1], sw = [half, 1, half], dx = [0, half, half + ex + 1], dw = [half, ex + 1, half];
+    const dy = [0, half, half + ey + 1], dh = [half, ey + 1, half];
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) lb.drawImage(lightSq, sx[i], sx[j], sw[i], sw[j], dx[i], dy[j], dw[i], dh[j]);
+  }
+  lightAspect = [w / size, h / size];
   return true;
 }
-function stampLight(x, y, r, alpha = 1, d = null) {
-  sc.save(); sc.globalAlpha = alpha;
+// alpha above 1 stamps again on top ("lighter" adds), which is how a burst brightens the shape
+function stampLight(x, y, r, alpha = 1, d = null, [ax, ay] = lightAspect) {
+  sc.save();
   sc.translate(x, y);
   if (d && d.s > 1.001) { sc.rotate(d.ang); sc.scale(d.s, 1 / d.s); sc.rotate(-d.ang); }   // stretch along the movement, keep the area
   sc.rotate(t * S.spin * 2 * Math.PI);
-  sc.drawImage(lightBuf, -r, -r, 2 * r, 2 * r);
+  for (let a = alpha; a > 0.001; a -= 1) { sc.globalAlpha = Math.min(1, a); sc.drawImage(lightBuf, -r * ax, -r * ay, 2 * r * ax, 2 * r * ay); }
   sc.restore();
 }
 // the cell SVG as an alpha mask, rasterized once per size and kept until the SVG changes
@@ -187,13 +211,14 @@ function drawScene() {
     sc.fillStyle = g; sc.fillRect(0, 0, W, H);
   }
   if (overlay && S.light !== "none") {
-    const r = Math.max(1, S.shapeSize * Math.min(W, H) * (1 + S.pulse * Math.sin(t * 2 * Math.PI / 2.4)));
+    const b = burstLevel();
+    const r = Math.max(1, S.shapeSize * Math.min(W, H) * (1 + S.pulse * Math.sin(t * 2 * Math.PI / 2.4)) * (1 + S.burstSize * b));
     let x, y;
     if (following()) { x = mouse.x; y = mouse.y; }
     else [x, y] = driftPos();
     updateMotion(x, y);
-    if (S.trail) drawTrail(x, y, r);   // any movement leaves a trail: the mouse, the drift or whatever moves the shape
-    else { trail.length = 0; drawLight(x, y, r); }
+    if (S.trail) drawTrail(x, y, r, 1 + S.burstGlow * b);   // any movement leaves a trail: the mouse, the drift or whatever moves the shape
+    else { trail.length = 0; drawLight(x, y, r, 1 + S.burstGlow * b); }
   }
   if (overlay && S.text) {
     const size = S.textSize * Math.min(W, H), y = S.textY * H;
@@ -318,15 +343,15 @@ function updateMotion(x, y) {
 // between frames so the tail comes out continuous. With "lighter" the stamps add up, so each one
 // only carries the share of brightness that fits the overlap.
 const trail = [];
-function drawTrail(x, y, r) {
+function drawTrail(x, y, r, glow = 1) {
   const now = performance.now() / 1000, dur = S.trailDur, gap = Math.max(2, r * S.trailSpacing);
   const lastP = trail[trail.length - 1];
-  if (!lastP) trail.push({ x, y, at: now, d: dfm });
+  if (!lastP) trail.push({ x, y, at: now, d: dfm, a: lightAspect });
   else {
     const d = Math.hypot(x - lastP.x, y - lastP.y), n = Math.min(60, Math.floor(d / gap));
     for (let i = 1; i <= n; i++) {
       const f = i / n;
-      trail.push({ x: lastP.x + (x - lastP.x) * f, y: lastP.y + (y - lastP.y) * f, at: lastP.at + (now - lastP.at) * f, d: dfm });
+      trail.push({ x: lastP.x + (x - lastP.x) * f, y: lastP.y + (y - lastP.y) * f, at: lastP.at + (now - lastP.at) * f, d: dfm, a: lightAspect });
     }
   }
   while (trail.length && now - trail[0].at > dur) trail.shift();
@@ -336,7 +361,7 @@ function drawTrail(x, y, r) {
   for (let i = 0; i < trail.length - 1; i++) {
     const p = trail[i], a = 1 - (now - p.at) / dur;
     if (a <= 0) continue;
-    stampLight(p.x, p.y, r * (1 - S.trailTaper * (1 - a)), Math.min(1, k * a * a), p.d);
+    stampLight(p.x, p.y, r * (1 - S.trailTaper * (1 - a)), Math.min(1, k * a * a), p.d, p.a);   // each one as stretched as the shape was there
   }
-  stampLight(x, y, r, 1, dfm);
+  stampLight(x, y, r, glow, dfm);
 }

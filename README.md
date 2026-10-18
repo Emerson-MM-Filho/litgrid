@@ -99,6 +99,14 @@ so the light follows the mouse over the whole page, a `<canvas>` you draw the sc
 c0, … }])` so each horizontal band of the screen, from `y` down, gets its own palette, for
 sections with different backgrounds. `lg.resize([w, h])` follows the window.
 
+`lg.burst()` swells and brightens the shape once, for a click on a button: `burstSize`,
+`burstGlow` and `burstSecs` set how much it grows, how much brighter it gets and for how
+long (in the editor, a click on the stage plays it). `stretchX` and `stretchY` stretch the
+shape without stretching its corners, so a round light becomes a rounded bar with the same
+falloff: to wrap the light around a button, set the size to half the button's height and
+stretch the width by the rest. The trail, the deformation and the burst follow the
+stretched shape.
+
 On a phone the page keeps scrolling: a vertical swipe scrolls, and a tap or a sideways
 drag moves the light. When the pointer leaves, the light eases back to its drift.
 Nothing is drawn while the canvas is off screen, and with reduced motion the canvas

@@ -7,10 +7,11 @@
 // size: [width, height] of the drawing in pixels. By default, the canvas' displayed size times the pixel ratio.
 // pointer: where the light listens to the mouse or finger, the canvas by default. A canvas behind the page's
 //   content passes window, and the coordinates still count from the canvas.
-// It returns { ready, update(settings), bands(list), resize(size), redraw(), snapshot(type, quality), stop() };
+// It returns { ready, update(settings), bands(list), resize(size), redraw(), burst(), snapshot(type, quality), stop() };
 // ready resolves after the first frame with the media and the SVGs loaded. bands takes [{ y, bg, c0…c4 }]:
 // from y down (in drawing pixels) the grid uses that palette, until the next band. A <canvas> as media is
-// read again on every frame; with animate off, call redraw() after changing it.
+// read again on every frame; with animate off, call redraw() after changing it. burst() swells and
+// brightens the shape once, as burstSize, burstGlow and burstSecs say (a click on a button, say).
 // One canvas per page: the renderer keeps its state in globals.
 let dirty = true;
 const Litgrid = {
@@ -71,7 +72,7 @@ const Litgrid = {
           if (frame % S.flickerEvery === 0) reroll();
           render(); drew = true; dirty = false;
         }
-      } else if (dirty || mouse.back || trail.length > 1 || (dfm && dfm.s > 1.01) || (media && media.tagName === "VIDEO" && !media.paused)) { render(); drew = true; dirty = false; }
+      } else if (dirty || bursting() || mouse.back || trail.length > 1 || (dfm && dfm.s > 1.01) || (media && media.tagName === "VIDEO" && !media.paused)) { render(); drew = true; dirty = false; }
       if (drew && !done && loaded()) { done = true; resolve(lg); }
       requestAnimationFrame(loop);
     }
@@ -86,6 +87,7 @@ const Litgrid = {
       bands(list) { bandSrc = list || []; buildLut(); dirty = true; },
       resize(next) { sizeOverride = next; apply(); },
       redraw() { dirty = true; },
+      burst() { if (!still) { burstAt = performance.now(); dirty = true; } },
       snapshot(type = "image/png", quality) { render(); return canvas.toDataURL(type, quality); },
       stop() {
         stopped = true; io?.disconnect();
