@@ -347,15 +347,18 @@ function syncPanel() {
 
 // ---------- render ----------
 const cv = document.getElementById("stage"), ctx = cv.getContext("2d");
-const mk = () => { const c = document.createElement("canvas"); return [c, c.getContext("2d", { willReadFrequently: true })]; };
-const [scene, sc] = mk(), [grid, gc] = mk(), [cells, cc] = mk(), [dots, dc] = mk(), [b1, b1c] = mk(), [b2, b2c] = mk(), [b3, b3c] = mk();
+// only the canvases read back with getImageData ask for a CPU backing; the rest stay on the GPU
+const mk = (read = false) => { const c = document.createElement("canvas"); return [c, c.getContext("2d", read ? { willReadFrequently: true } : undefined)]; };
+const [scene, sc] = mk(), [grid, gc] = mk(true), [cells, cc] = mk(), [dots, dc] = mk(), [b1, b1c] = mk(), [b2, b2c] = mk(), [b3, b3c] = mk();
 let bgRGB = [0, 0, 0];
 let W = 1920, H = 1080, cols = 0, rows = 0, noise = new Float32Array(0), frame = 0, t = 0;
 let media = null, mediaW = 0, mediaH = 0, mediaCam = false, stream = null;
 const mouse = { x: 0, y: 0, tx: 0, ty: 0, on: false };
 const svgs = { light: { img: null, w: 1, h: 1, ver: 0, stretch: false, src: null }, cell: { img: null, w: 1, h: 1, ver: 0, stretch: false, src: null } };
 const [lightBuf, lb] = mk();
-const spriteCache = new Map(); let spriteKey = "";
+const [maskBuf, mb] = mk(true);
+const maskCache = new Map(); let maskVer = -1;
+let cellImg = null, dotImg = null, cell32 = null, dot32 = null;
 function syncSvgs() { for (const target of ["light", "cell"]) { const txt = svgText(target); if (txt !== svgs[target].src) loadSvg(target, txt); } }
 
 function loadSvg(target, text) {
@@ -412,37 +415,56 @@ function stampLight(x, y, r, alpha = 1, d = null) {
   sc.drawImage(lightBuf, -r, -r, 2 * r, 2 * r);
   sc.restore();
 }
-// one silhouette tinted per color, cached until the cell or the SVG changes
-function sprite(color, bw, bh) {
-  const key = `${bw}x${bh}|${svgs.cell.ver}`;
-  if (key !== spriteKey || spriteCache.size > 5000) { spriteCache.clear(); spriteKey = key; }
-  let c = spriteCache.get(color);
-  if (!c) {
-    c = document.createElement("canvas"); c.width = bw; c.height = bh;
-    const g = c.getContext("2d");
+// the cell SVG as an alpha mask, rasterized once per size and kept until the SVG changes
+function mask(w, h) {
+  if (maskVer !== svgs.cell.ver) { maskCache.clear(); maskVer = svgs.cell.ver; }
+  const key = w * 65536 + h;
+  let m = maskCache.get(key);
+  if (!m) {
+    m = new Uint8Array(w * h).fill(255);
     if (svgs.cell.img) {
-      fitSvg(g, svgs.cell, bw, bh);
-      g.globalCompositeOperation = "source-in";
+      maskBuf.width = w; maskBuf.height = h;
+      fitSvg(mb, svgs.cell, w, h);
+      const px = mb.getImageData(0, 0, w, h).data;
+      for (let i = 0; i < m.length; i++) m[i] = px[i * 4 + 3];
     }
-    g.fillStyle = color; g.fillRect(0, 0, bw, bh);
-    spriteCache.set(color, c);
+    maskCache.set(key, m);
   }
-  return c;
+  return m;
 }
-let cellW = 1, cellH = 1;
-let lut = [], lutDim = [], lutRGB = [];
+// paints a cell straight into a pixel buffer (source-over, so the core of a hollow cell sits on its shell)
+function paint(px, x, y, w, h, r, g, b) {
+  if (w < 1 || h < 1) return;
+  const m = mask(w, h), px32 = px === cellImg.data ? cell32 : dot32, solid = (0xff000000 | (b << 16) | (g << 8) | r) >>> 0;   // opaque pixels go in one 32-bit write (little-endian RGBA)
+  const i0 = Math.max(0, -x), i1 = Math.min(w, W - x), j0 = Math.max(0, -y), j1 = Math.min(h, H - y);
+  for (let j = j0; j < j1; j++) {
+    let p = ((y + j) * W + x + i0) * 4, o = j * w + i0;
+    for (let i = i0; i < i1; i++, p += 4, o++) {
+      const a = m[o];
+      if (!a) continue;
+      if (a === 255) { px32[p >> 2] = solid; continue; }
+      const da = px[p + 3];
+      if (!da) { px[p] = r; px[p + 1] = g; px[p + 2] = b; px[p + 3] = a; continue; }
+      const sa = a / 255, ba = (da / 255) * (1 - sa), oa = sa + ba;
+      px[p] = (r * sa + px[p] * ba) / oa; px[p + 1] = (g * sa + px[p + 1] * ba) / oa; px[p + 2] = (b * sa + px[p + 2] * ba) / oa;
+      px[p + 3] = oa * 255;
+    }
+  }
+}
+let lut = new Uint8Array(768), lutDim = new Uint8Array(768);   // rgb per luminance level, lit and core
 
 const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 function buildLut() {
   const stops = [S.c0, S.c1, S.c2, S.c3, S.c4].map(hex), pos = [0, 0.3, 0.55, 0.8, 1], bg = hex(S.bg);
-  lut = []; lutDim = []; lutRGB = [];
+
   for (let i = 0; i < 256; i++) {
     const v = i / 255; let j = 0; while (j < 3 && v > pos[j + 1]) j++;
     const f = (v - pos[j]) / (pos[j + 1] - pos[j]);
     const rgb = [0, 1, 2].map(n => Math.round(stops[j][n] + (stops[j + 1][n] - stops[j][n]) * f));
-    lutRGB.push(rgb);
-    lut.push(`rgb(${rgb})`);
-    lutDim.push(`rgb(${rgb.map((x, n) => Math.round(bg[n] + (x - bg[n]) * S.core))})`);   // the core pulls toward the background, on dark and on light
+    for (let n = 0; n < 3; n++) {
+      lut[i * 3 + n] = rgb[n];
+      lutDim[i * 3 + n] = Math.round(bg[n] + (rgb[n] - bg[n]) * S.core);   // the core pulls toward the background, on dark and on light
+    }
   }
 }
 function sizeAll() {
@@ -455,6 +477,10 @@ function sizeAll() {
   b1.width = Math.ceil(W / 2); b1.height = Math.ceil(H / 2);
   b2.width = Math.ceil(W / 8); b2.height = Math.ceil(H / 8);
   b3.width = Math.ceil(W / 32); b3.height = Math.ceil(H / 32);
+  if (!cellImg || cellImg.width !== W || cellImg.height !== H) {
+    cellImg = new ImageData(W, H); dotImg = new ImageData(W, H);
+    cell32 = new Uint32Array(cellImg.data.buffer); dot32 = new Uint32Array(dotImg.data.buffer);
+  }
   if (noise.length !== cols * rows) { noise = new Float32Array(cols * rows); reroll(); }
 }
 function reroll() { for (let i = 0; i < noise.length; i++) noise[i] = Math.random() * 2 - 1; }
@@ -503,12 +529,7 @@ function drawScene() {
   return gc.getImageData(0, 0, cols, rows).data;
 }
 
-// each cell is the tinted SVG silhouette; a hollow cell is the same silhouette with the core shrunk inside it
-function cellFill(x, y, w, h, color, g = cc) { g.drawImage(sprite(color, cellW, cellH), x, y, w, h); }
-function cellHollow(x, y, w, h, col, dim, cw) {
-  cc.drawImage(sprite(col, cellW, cellH), x, y, w, h);
-  cc.drawImage(sprite(dim, cellW, cellH), x + cw, y + cw, w - 2 * cw, h - 2 * cw);
-}
+// each cell is the SVG silhouette in its color; a hollow cell is the same silhouette with the core shrunk inside it
 
 function render() {
   if (S.followMouse && mouse.on) {
@@ -516,11 +537,11 @@ function render() {
     mouse.x += (mouse.tx - mouse.x) * k; mouse.y += (mouse.ty - mouse.y) * k;
   }
   const data = drawScene();
-  cc.clearRect(0, 0, W, H); dc.clearRect(0, 0, W, H);   // dim dots on their own layer: they stay out of the glow
+  const cpx = cellImg.data, dpx = dotImg.data;   // dim dots on their own layer: they stay out of the glow
+  cell32.fill(0); dot32.fill(0);
   bgRGB = hex(S.bg);
   const px = S.stepX, py = S.stepY;
   const bw = Math.max(1, px - S.gapX), bh = Math.max(1, py - S.gapY);
-  cellW = bw; cellH = bh;
   const ox = Math.floor((W - cols * px) / 2) + Math.floor(S.gapX / 2), oy = Math.floor((H - rows * py) / 2) + Math.floor(S.gapY / 2);
   const cw = Math.min(S.outline, Math.floor(bw / 2), Math.floor(bh / 2));
   const dot = Math.min(S.dot, bw, bh);
@@ -533,31 +554,33 @@ function render() {
       v = Math.pow(v, S.contrast) * (1 + noise[i] * S.flicker);
       v = v < 0 ? 0 : v > 1 ? 1 : v;
       const li = (v * 255) | 0;
-      let col, dim;
+      let cr, cg, cb;
       if (fromMedia) {
-        const m = Math.max(R, G, B) || 1, gain = Math.min(2.2, 255 / m) * 0.55 + 0.45 * v;
-        let rgb = [R, G, B].map(x => Math.min(255, Math.round(x * (0.6 + gain))));
-        rgb = rgb.map(x => (x >> 4) << 4);   // fewer distinct colors, fewer silhouettes to tint
-        col = `rgb(${rgb})`; dim = `rgb(${rgb.map((x, n) => Math.round(bgRGB[n] + (x - bgRGB[n]) * S.core))})`;
-      } else { col = lut[li]; dim = lutDim[li]; }
+        const m = Math.max(R, G, B) || 1, f = 0.6 + Math.min(2.2, 255 / m) * 0.55 + 0.45 * v;
+        cr = Math.min(255, Math.round(R * f)); cg = Math.min(255, Math.round(G * f)); cb = Math.min(255, Math.round(B * f));
+      } else { cr = lut[li * 3]; cg = lut[li * 3 + 1]; cb = lut[li * 3 + 2]; }
       const x = ox + k * px, y = oy + r * py;
-      if (S.mode === "solid") { cellFill(x, y, bw, bh, col); continue; }
+      if (S.mode === "solid") { paint(cpx, x, y, bw, bh, cr, cg, cb); continue; }
       if (S.mode === "variable") {
         const w = Math.round(bw * v), h = Math.round(bh * v);
-        if (w < 1 || h < 1) continue;
-        cellFill(x + ((bw - w) >> 1), y + ((bh - h) >> 1), w, h, col); continue;
+        paint(cpx, x + ((bw - w) >> 1), y + ((bh - h) >> 1), w, h, cr, cg, cb); continue;
       }
       if (v < S.offBelow) {
-        if (dot < 1) continue;
-        cellFill(x + ((bw - dot) >> 1), y + ((bh - dot) >> 1), dot, dot, col, dc);
+        if (dot >= 1) paint(dpx, x + ((bw - dot) >> 1), y + ((bh - dot) >> 1), dot, dot, cr, cg, cb);
       } else if (v < S.hollowAbove || cw < 1) {
-        cellFill(x, y, bw, bh, col);
+        paint(cpx, x, y, bw, bh, cr, cg, cb);
       } else {
-        cellHollow(x, y, bw, bh, col, dim, cw);
+        paint(cpx, x, y, bw, bh, cr, cg, cb);
+        let dr, dg, db;
+        if (fromMedia) {
+          dr = Math.round(bgRGB[0] + (cr - bgRGB[0]) * S.core); dg = Math.round(bgRGB[1] + (cg - bgRGB[1]) * S.core); db = Math.round(bgRGB[2] + (cb - bgRGB[2]) * S.core);
+        } else { dr = lutDim[li * 3]; dg = lutDim[li * 3 + 1]; db = lutDim[li * 3 + 2]; }
+        paint(cpx, x + cw, y + cw, bw - 2 * cw, bh - 2 * cw, dr, dg, db);
       }
     }
   }
   ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
+  cc.putImageData(cellImg, 0, 0); dc.putImageData(dotImg, 0, 0);
   ctx.fillStyle = S.bg; ctx.fillRect(0, 0, W, H);
   ctx.drawImage(dots, 0, 0);
   ctx.drawImage(cells, 0, 0);
@@ -630,9 +653,10 @@ let last = 0, acc = 0, fpsN = 0, fpsT = 0, fpsReal = 0, dirty = true;
 function loop(now) {
   const dt = Math.min(0.25, (now - last) / 1000 || 0); last = now;
   if (S.animate) {
-    acc += dt;
-    if (acc >= 1 / S.fps) {
-      t += acc; acc = 0; frame++;
+    acc += dt; t += dt;
+    const step = 1 / S.fps;
+    if (acc >= step - 0.002) {   // keep the remainder, so the cap is reached on any refresh rate
+      acc = Math.min(acc - step, step); frame++;
       if (frame % S.flickerEvery === 0) reroll();
       render(); fpsN++; dirty = false;
     }
