@@ -93,6 +93,12 @@ scripts and mount it on a canvas:
 - `size` is the drawing size in pixels; by default it is the canvas' displayed size
   times the pixel ratio.
 
+Behind a page's content, the canvas can stay fixed and full screen: pass `pointer: window`
+so the light follows the mouse over the whole page, a `<canvas>` you draw the scene on as
+`media` (call `lg.redraw()` after drawing it when animate is off), and `lg.bands([{ y, bg,
+c0, … }])` so each horizontal band of the screen, from `y` down, gets its own palette, for
+sections with different backgrounds. `lg.resize([w, h])` follows the window.
+
 On a phone the page keeps scrolling: a vertical swipe scrolls, and a tap or a sideways
 drag moves the light. When the pointer leaves, the light eases back to its drift.
 Nothing is drawn while the canvas is off screen, and with reduced motion the canvas

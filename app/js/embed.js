@@ -1,15 +1,20 @@
 // ---------- embed: the renderer without the editor, on a canvas of another page ----------
 // Load config.js, render.js and this file, then:
-//   const lg = Litgrid.mount(canvas, { settings, media, size });
+//   const lg = Litgrid.mount(canvas, { settings, media, size, pointer });
 // settings: the JSON from "Copy settings", whole or in part, over the defaults. Nothing is read from or
 //   saved to localStorage, so the colors and everything else come only from here.
 // media: an image or video URL (another origin needs CORS), or an <img>, <video> or <canvas>.
 // size: [width, height] of the drawing in pixels. By default, the canvas' displayed size times the pixel ratio.
-// It returns { ready, update(settings), snapshot(type, quality), stop() }; ready resolves after the first
-// frame with the media and the SVGs loaded. One canvas per page: the renderer keeps its state in globals.
+// pointer: where the light listens to the mouse or finger, the canvas by default. A canvas behind the page's
+//   content passes window, and the coordinates still count from the canvas.
+// It returns { ready, update(settings), bands(list), resize(size), redraw(), snapshot(type, quality), stop() };
+// ready resolves after the first frame with the media and the SVGs loaded. bands takes [{ y, bg, c0…c4 }]:
+// from y down (in drawing pixels) the grid uses that palette, until the next band. A <canvas> as media is
+// read again on every frame; with animate off, call redraw() after changing it.
+// One canvas per page: the renderer keeps its state in globals.
 let dirty = true;
 const Litgrid = {
-  mount(canvas, { settings = {}, media: src = null, size = null } = {}) {
+  mount(canvas, { settings = {}, media: src = null, size = null, pointer = canvas } = {}) {
     cv = canvas; ctx = canvas.getContext("2d");
     S = { ...DEFAULTS, ...settings };
     const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -21,7 +26,7 @@ const Litgrid = {
     // the page keeps scrolling under a finger: vertical swipes scroll, a tap or a sideways drag moves the light
     const apply = () => {
       sizeAll(); buildLut(); syncSvgs(); dirty = true;
-      canvas.style.touchAction = S.followMouse ? "pan-y" : "";
+      if (pointer === canvas) canvas.style.touchAction = S.followMouse ? "pan-y" : "";
     };
     const move = (e) => {
       if (!S.followMouse || still) return;
@@ -31,7 +36,8 @@ const Litgrid = {
       dirty = true;
     };
     const on = [["pointermove", move], ["pointerdown", move], ["pointerleave", releasePointer], ["pointercancel", releasePointer]];
-    for (const [ev, fn] of on) canvas.addEventListener(ev, fn);
+    if (pointer !== canvas) on.push(["pointerout", (e) => { if (!e.relatedTarget) releasePointer(); }]);   // left the window
+    for (const [ev, fn] of on) pointer.addEventListener(ev, fn);
 
     let mediaReady = !src, resolve;
     const ready = new Promise(r => { resolve = r; });
@@ -77,10 +83,13 @@ const Litgrid = {
     const lg = {
       ready,
       update(next) { S = { ...S, ...next }; if (still) S.animate = false; apply(); },
+      bands(list) { bandSrc = list || []; buildLut(); dirty = true; },
+      resize(next) { sizeOverride = next; apply(); },
+      redraw() { dirty = true; },
       snapshot(type = "image/png", quality) { render(); return canvas.toDataURL(type, quality); },
       stop() {
         stopped = true; io?.disconnect();
-        for (const [ev, fn] of on) canvas.removeEventListener(ev, fn);
+        for (const [ev, fn] of on) pointer.removeEventListener(ev, fn);
         if (media && media.tagName === "VIDEO") media.pause();
       },
     };

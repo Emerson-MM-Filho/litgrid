@@ -118,20 +118,35 @@ function paint(px, x, y, w, h, r, g, b) {
   }
 }
 let lut = new Uint8Array(768), lutDim = new Uint8Array(768);   // rgb per luminance level, lit and core
+// horizontal bands with a palette of their own, for a page whose sections have different backgrounds:
+// bandSrc is [{ y, bg, c0…c4 }] with y in drawing pixels, top to bottom; above the first band, the main palette
+let bandSrc = [], bands = [];
 
 const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
-function buildLut() {
-  const stops = [S.c0, S.c1, S.c2, S.c3, S.c4].map(hex), pos = [0, 0.3, 0.55, 0.8, 1], bg = hex(S.bg);
-
+const isLight = ([r, g, b]) => (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.5;
+function paletteLut(p) {
+  const stops = [p.c0, p.c1, p.c2, p.c3, p.c4].map(hex), pos = [0, 0.3, 0.55, 0.8, 1], bg = hex(p.bg);
+  const l = new Uint8Array(768), dim = new Uint8Array(768);
   for (let i = 0; i < 256; i++) {
     const v = i / 255; let j = 0; while (j < 3 && v > pos[j + 1]) j++;
     const f = (v - pos[j]) / (pos[j + 1] - pos[j]);
     const rgb = [0, 1, 2].map(n => Math.round(stops[j][n] + (stops[j + 1][n] - stops[j][n]) * f));
     for (let n = 0; n < 3; n++) {
-      lut[i * 3 + n] = rgb[n];
-      lutDim[i * 3 + n] = Math.round(bg[n] + (rgb[n] - bg[n]) * S.core);   // the core pulls toward the background, on dark and on light
+      l[i * 3 + n] = rgb[n];
+      dim[i * 3 + n] = Math.round(bg[n] + (rgb[n] - bg[n]) * S.core);   // the core pulls toward the background, on dark and on light
     }
   }
+  return { lut: l, dim, bg: p.bg, light: isLight(bg) };
+}
+function buildLut() {
+  ({ lut, dim: lutDim } = paletteLut(S));
+  bands = bandSrc.map(b => ({ y: b.y, ...paletteLut({ ...S, ...b }) }));
+}
+// the stretches of the drawing and the palette of each, the main one first
+function segments() {
+  const main = { y: -Infinity, lut, dim: lutDim, bg: S.bg, light: isLight(hex(S.bg)) };
+  const list = [main, ...bands.filter(b => b.y < H)].sort((a, b) => a.y - b.y);
+  return list.map((s, i) => ({ ...s, y: Math.max(0, s.y), end: i + 1 < list.length ? Math.max(0, list[i + 1].y) : H })).filter(s => s.end > s.y);
 }
 function sizeAll() {
   [W, H] = sizeOverride || (FORMATS[S.format] || FORMATS[DEFAULTS.format]).size;
@@ -218,7 +233,11 @@ function render() {
   const cw = Math.min(S.outline, Math.floor(bw / 2), Math.floor(bh / 2));
   const dot = Math.min(S.dot, bw, bh);
   const fromMedia = S.colorSource === "media";
+  const segs = segments();
+  let seg = 0, lut = segs[0].lut, lutDim = segs[0].dim;
   for (let r = 0; r < rows; r++) {
+    const mid = oy + r * py + bh / 2;   // a row takes the palette of the band its middle falls in
+    while (seg + 1 < segs.length && mid >= segs[seg + 1].y) { seg++; lut = segs[seg].lut; lutDim = segs[seg].dim; }
     for (let k = 0; k < cols; k++) {
       const i = r * cols + k, d = i * 4;
       const R = data[d], G = data[d + 1], B = data[d + 2];
@@ -253,7 +272,7 @@ function render() {
   }
   ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
   cc.putImageData(cellImg, 0, 0); dc.putImageData(dotImg, 0, 0);
-  ctx.fillStyle = S.bg; ctx.fillRect(0, 0, W, H);
+  for (const s of segs) { ctx.fillStyle = s.bg; ctx.fillRect(0, s.y, W, s.end - s.y); }
   ctx.drawImage(dots, 0, 0);
   ctx.drawImage(cells, 0, 0);
   if (S.bloom > 0 || S.bloomWide > 0) {
@@ -261,12 +280,15 @@ function render() {
     b1c.clearRect(0, 0, b1.width, b1.height); b1c.drawImage(cells, 0, 0, b1.width, b1.height);
     b2c.clearRect(0, 0, b2.width, b2.height); b2c.drawImage(b1, 0, 0, b2.width, b2.height);
     b3c.clearRect(0, 0, b3.width, b3.height); b3c.drawImage(b2, 0, 0, b3.width, b3.height);
-    const [fr, fg, fb] = hex(S.bg), light = (0.299 * fr + 0.587 * fg + 0.114 * fb) / 255 > 0.5;
-    ctx.globalCompositeOperation = light ? "multiply" : "lighter";
     ctx.imageSmoothingQuality = "high";
-    let a = S.bloom; while (a > 0) { ctx.globalAlpha = Math.min(1, a); ctx.drawImage(b2, 0, 0, W, H); a -= 1; }
-    a = S.bloomWide; while (a > 0) { ctx.globalAlpha = Math.min(1, a); ctx.drawImage(b3, 0, 0, W, H); a -= 1; }
-    ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+    for (const s of segs) {   // the glow darkens on a light background and lights up on a dark one, band by band
+      ctx.save();
+      if (segs.length > 1) { ctx.beginPath(); ctx.rect(0, s.y, W, s.end - s.y); ctx.clip(); }
+      ctx.globalCompositeOperation = s.light ? "multiply" : "lighter";
+      let a = S.bloom; while (a > 0) { ctx.globalAlpha = Math.min(1, a); ctx.drawImage(b2, 0, 0, W, H); a -= 1; }
+      a = S.bloomWide; while (a > 0) { ctx.globalAlpha = Math.min(1, a); ctx.drawImage(b3, 0, 0, W, H); a -= 1; }
+      ctx.restore();
+    }
   }
   if (S.scanlines > 0) {
     ctx.fillStyle = `rgba(0,0,0,${S.scanlines})`;
