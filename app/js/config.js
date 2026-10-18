@@ -67,7 +67,7 @@ const SCHEMA = [
     ["svgMode", "select", "The SVG becomes", ["silhouette", "tones"], { silhouette: "Lit silhouette (ignores the SVG colors)", tones: "The SVG's own tones (light lights up, dark stays off)" }],
     ["followMouse", "check", "Follow the mouse (or finger)"],
     ["smoothing", "range", "Follow delay", 0, 0.97, 0.01],
-    ["trail", "check", "Trail while following (fading tail)"],
+    ["trail", "check", "Trail (fading tail wherever the shape moves)"],
     ["trailDur", "range", "Trail: duration (s)", 0.1, 3, 0.05],
     ["trailStrength", "range", "Trail: strength", 0, 1, 0.01],
     ["trailTaper", "range", "Trail: taper at the tip", 0, 1, 0.01],

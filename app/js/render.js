@@ -192,7 +192,7 @@ function drawScene() {
     if (following()) { x = mouse.x; y = mouse.y; }
     else [x, y] = driftPos();
     updateMotion(x, y);
-    if (S.trail && following()) drawTrail(x, y, r);
+    if (S.trail) drawTrail(x, y, r);   // any movement leaves a trail: the mouse, the drift or whatever moves the shape
     else { trail.length = 0; drawLight(x, y, r); }
   }
   if (overlay && S.text) {
