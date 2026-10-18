@@ -34,9 +34,13 @@ Then open http://localhost:8765.
   the colors from the input media.
 - **Glow and Motion:** bloom, scanlines, pulse, drift and flicker.
 
-An image, a video or the webcam can replace the scene as input. "Freeze frame"
-shows the current frame as a PNG you can save, and "Copy settings" copies every
-setting as JSON.
+An image, a video or the webcam can replace the scene as input. "Copy settings"
+copies every setting as JSON.
+
+**Export** saves the stage as a PNG of the current frame, a video (MP4 where the
+browser can record it, WebM otherwise) or a looping GIF. Video and GIF are
+recorded in real time, for the length you pick; the GIF is scaled down to the
+width you pick.
 
 Settings are kept in the browser. "Reset" goes back to the defaults.
 
@@ -50,6 +54,8 @@ so an AI agent running in the browser can set it up for you:
   and what was ignored, and why.
 - `apply_color_preset`: one of the named palettes.
 - `set_custom_svg`: your own SVG as the light shape or the cell shape.
+- `export_media`: save a PNG, a video or a GIF; it can also hand a PNG or GIF
+  back to the agent, so it can look at the result.
 - `reset_settings`: back to the defaults.
 
 In browsers without WebMCP nothing changes. To try it in Chrome, turn on
