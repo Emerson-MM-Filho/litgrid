@@ -126,7 +126,13 @@ const PRESETS = {
   "Light": { bg: "#ffffff", c0: "#e8e3de", c1: "#f2c6af", c2: "#e07a4a", c3: "#c2410c", c4: "#a3350a", bloom: 0.35, bloomWide: 0.15 },
   "Ink on paper": { bg: "#f3eee6", c0: "#dcd4c9", c1: "#e8b597", c2: "#d4602c", c3: "#b83c0b", c4: "#8c2d08", bloom: 0.25, bloomWide: 0.1 },
 };
-const FORMATS = { "16:9 1920×1080": [1920, 1080], "9:16 1080×1920": [1080, 1920], "1:1 1080×1080": [1080, 1080] };
+// each format brings its own layout: side by side on 16:9, stacked on 1:1 and 9:16.
+// Sizes are measured against the short side, so they read the same in every format.
+const FORMATS = {
+  "16:9 1920×1080": { size: [1920, 1080], layout: { textSize: 0.16, textX: 0.36, textY: 0.52, shapeX: 0.75, shapeY: 0.5, shapeSize: 0.15 } },
+  "9:16 1080×1920": { size: [1080, 1920], layout: { textSize: 0.14, textX: 0.5, textY: 0.66, shapeX: 0.5, shapeY: 0.45, shapeSize: 0.25 } },
+  "1:1 1080×1080": { size: [1080, 1080], layout: { textSize: 0.13, textX: 0.5, textY: 0.74, shapeX: 0.5, shapeY: 0.4, shapeSize: 0.2 } },
+};
 
 // every shape is an SVG. Light shapes carry the mode they start in: "tones" uses the SVG's own shades
 // (sphere and ring are gradients), "silhouette" lights up the cutout. Cell shapes stretch to fill the cell.
@@ -152,8 +158,8 @@ const names = (lib, extra) => Object.assign(Object.fromEntries(Object.entries(li
 
 const DEFAULTS = {
   svgLight: "", svgCell: "", svgMode: "silhouette",
-  format: "16:9 1920×1080", text: "Litgrid", textSize: 0.16, textX: 0.36, textY: 0.52, volume: 0.45,
-  light: "sparkle", shapeX: 0.78, shapeY: 0.5, shapeSize: 0.3, spin: 0, followMouse: false, smoothing: 0.85,
+  format: "16:9 1920×1080", text: "Litgrid", ...FORMATS["16:9 1920×1080"].layout, volume: 0.45,
+  light: "sparkle", spin: 0, followMouse: false, smoothing: 0.85,
   trail: true, trailDur: 1.6, trailStrength: 0.8, trailTaper: 0.5, trailSpacing: 0.25,
   deform: true, deformAmount: 1, deformMax: 2.2, ambient: 0.04, overlay: true, mirror: true,
   stepX: 12, stepY: 12, gapX: 2, gapY: 4,
@@ -229,7 +235,7 @@ const SCHEMA = [
 ];
 const SWATCHES = [["bg", "bg"], ["c0", "dark"], ["c1", "low"], ["c2", "mid"], ["c3", "high"], ["c4", "lit"]];
 
-const KEY = "litgrid-v1";
+const KEY = "litgrid-v2";
 let S = { ...DEFAULTS };
 try { const saved = JSON.parse(localStorage.getItem(KEY) || "null"); if (saved) S = { ...DEFAULTS, ...saved }; } catch {}
 if (!FORMATS[S.format]) S.format = DEFAULTS.format;   // saved format no longer in the list
@@ -312,6 +318,7 @@ function buildPanel() {
         for (const o of a) { const op = document.createElement("option"); op.value = o; op.textContent = b ? b[o] : o; inp.append(op); }
         inp.onchange = () => {
           if (key === "light" && LIGHT_SHAPES[inp.value]) S.svgMode = LIGHT_SHAPES[inp.value].mode;
+          if (key === "format" && FORMATS[inp.value]) Object.assign(S, FORMATS[inp.value].layout);
           const target = key === "light" ? "light" : key === "cellShape" ? "cell" : null;
           if (target && inp.value === "custom" && !S[SVG_KEY[target]]) S[SVG_KEY[target]] = editors[target].value;   // "My SVG" starts from the current shape
           S[key] = inp.value; syncPanel(); changed();
@@ -439,7 +446,7 @@ function buildLut() {
   }
 }
 function sizeAll() {
-  [W, H] = FORMATS[S.format] || FORMATS[DEFAULTS.format];
+  [W, H] = (FORMATS[S.format] || FORMATS[DEFAULTS.format]).size;
   if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
   cols = Math.max(1, Math.floor(W / S.stepX)); rows = Math.max(1, Math.floor(H / S.stepY));
   scene.width = cols * 3; scene.height = rows * 3;
@@ -473,7 +480,7 @@ function drawScene() {
     sc.fillStyle = g; sc.fillRect(0, 0, W, H);
   }
   if (overlay && S.light !== "none") {
-    const r = Math.max(1, S.shapeSize * H * (1 + S.pulse * Math.sin(t * 2 * Math.PI / 2.4)));
+    const r = Math.max(1, S.shapeSize * Math.min(W, H) * (1 + S.pulse * Math.sin(t * 2 * Math.PI / 2.4)));
     let x, y;
     if (S.followMouse && mouse.on) { x = mouse.x; y = mouse.y; }
     else { x = S.shapeX * W + S.drift * W * Math.sin(t * 2 * Math.PI / 7); y = S.shapeY * H + S.drift * H * 0.5 * Math.cos(t * 2 * Math.PI / 9); }
@@ -482,7 +489,7 @@ function drawScene() {
     else { trail.length = 0; drawLight(x, y, r); }
   }
   if (overlay && S.text) {
-    const size = S.textSize * H, y = S.textY * H;
+    const size = S.textSize * Math.min(W, H), y = S.textY * H;
     sc.font = `800 ${size}px Unbounded, "Arial Black", sans-serif`;
     sc.textAlign = "center"; sc.textBaseline = "middle";
     const g = sc.createLinearGradient(0, y - size * 0.5, 0, y + size * 0.5);
