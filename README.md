@@ -9,8 +9,8 @@ the 2D canvas.
 
 Live at https://emerson-mm-filho.github.io/litgrid/ (the webcam works there).
 
-It's a single page with no build step and no dependencies: open `index.html` in
-a browser.
+There is no build step and there are no dependencies: open `index.html` in a
+browser.
 
 On your machine, the webcam only works when the page is served from `localhost`:
 
@@ -19,6 +19,22 @@ python3 -m http.server 8765
 ```
 
 Then open http://localhost:8765.
+
+## Files
+
+- `index.html`: the page markup.
+- `style.css`: the layout and the light and dark frames.
+- `js/config.js`: presets, formats, the built-in SVG shapes, the settings
+  schema and the saved settings.
+- `js/panel.js`: builds the control panel from the schema.
+- `js/render.js`: the canvas pipeline (scene, grid, light, trail, deformation).
+- `js/export.js`: PNG, video and the GIF encoder.
+- `js/webmcp.js`: the tools for AI agents.
+- `js/app.js`: the frame loop, the buttons, media and webcam, and the start.
+
+They are plain scripts, not ES modules, so the page still opens straight from
+disk. They share their top-level names and load in the order listed in
+`index.html`.
 
 ## What you can change
 
