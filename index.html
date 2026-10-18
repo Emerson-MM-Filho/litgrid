@@ -1,0 +1,735 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body>
+<title>Litgrid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@800&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: effect bench — stage on the left (sticky while scrolling), controls on the right; stacks on mobile.
+   The frame follows the chosen background: dark by default, light (.light) when the effect background is light. */
+:root {
+  --bg: #0a0b13;
+  --panel: #11121c;
+  --line: #22243a;
+  --fg: #ebe7e1;
+  --muted: #8d8b9c;
+  --accent: #e2672b;
+  --display: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --body: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: dark;
+}
+/* the frame follows the effect background: light theme when the chosen background is light */
+:root.light {
+  --bg: #f5f3f0;
+  --panel: #ffffff;
+  --line: #e0dbd5;
+  --fg: #1f1b18;
+  --muted: #6e6862;
+  --accent: #c2410c;
+  color-scheme: light;
+}
+:root.light button.primary { color: #ffffff; }
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font: 14px/1.45 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; margin-bottom: 16px; }
+h1 { font: 800 clamp(18px, 2.4vw, 24px)/1.1 var(--display); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 70ch; }
+.app { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+@media (min-width: 1000px) { .app { grid-template-columns: minmax(0, 1fr) 360px; align-items: start; } .stage-wrap { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); } }
+.stage-wrap { display: grid; gap: 10px; min-width: 0; }
+.stage { display: grid; place-items: center; background: #000; border: 1px solid var(--line); border-radius: 6px; padding: 10px; min-height: 160px; }
+#stage { display: block; max-width: 100%; max-height: 72vh; width: auto; height: auto; image-rendering: auto; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.stat { font: 12px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; margin-left: auto; }
+button, .file {
+  font: 500 13px var(--body); color: var(--fg); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 5px; padding: 7px 11px; cursor: pointer;
+}
+button:hover, .file:hover { border-color: var(--muted); }
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, .file:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #140803; }
+.file input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.file { position: relative; display: inline-block; }
+.panel { display: grid; gap: 8px; min-width: 0; }
+details { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+summary { cursor: pointer; padding: 10px 12px; font: 600 11px var(--body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); list-style: none; display: flex; justify-content: space-between; }
+summary::after { content: "+"; font-family: var(--mono); }
+details[open] summary::after { content: "–"; }
+.fields { display: grid; gap: 10px; padding: 2px 12px 14px; }
+.row { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; }
+.row label { color: var(--fg); }
+.row output { font: 12px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.row input[type=range], .row select, .row input[type=text] { grid-column: 1 / -1; width: 100%; }
+input[type=range] { accent-color: var(--accent); }
+textarea { grid-column: 1 / -1; width: 100%; resize: vertical; font: 12px/1.4 var(--mono); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; }
+.svg-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.svg-actions button { padding: 5px 9px; font-size: 12px; }
+select, input[type=text] { font: 13px var(--body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; }
+.check { display: flex; gap: 8px; align-items: center; }
+.check input { accent-color: var(--accent); }
+.swatches { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.swatches label { display: grid; gap: 3px; font: 10px var(--mono); color: var(--muted); text-align: center; }
+input[type=color] { width: 100%; height: 30px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); padding: 2px; cursor: pointer; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.presets button { padding: 5px 9px; font-size: 12px; }
+.hint { color: var(--muted); font-size: 12px; margin: 0; }
+#snap[hidden] { display: none; }
+#snap { display: grid; gap: 6px; }
+#snap img { border: 1px solid var(--line); border-radius: 4px; }
+</style>
+
+<header>
+  <h1>Litgrid</h1>
+  <p>A grid of cells that lights up with the light in the scene. Move the controls and the stage updates live.</p>
+</header>
+
+<div class="app">
+  <div class="stage-wrap">
+    <div class="stage"><canvas id="stage" width="1920" height="1080" aria-label="Effect preview"></canvas></div>
+    <div class="bar">
+      <button id="play" class="primary" type="button">Pause</button>
+      <label class="file">Use image or video<input id="media" type="file" accept="image/*,video/*"></label>
+      <button id="cam" type="button">Use webcam</button>
+      <button id="photo" type="button" hidden>Take photo</button>
+      <button id="dropMedia" type="button" hidden>Remove media</button>
+      <button id="shot" type="button">Freeze frame</button>
+      <button id="copy" type="button">Copy settings</button>
+      <button id="reset" type="button">Reset</button>
+      <span class="stat" id="stat"></span>
+    </div>
+    <p class="hint" id="note" role="status" hidden></p>
+    <div id="snap" hidden>
+      <p class="hint">Frozen frame at full size. Right-click (or long-press on mobile) to save the image.</p>
+      <img id="snapImg" alt="Frozen frame of the effect">
+    </div>
+  </div>
+  <form class="panel" id="panel" onsubmit="return false"></form>
+</div>
+
+<script>
+const PRESETS = {
+  "Terracotta on night": { bg: "#090b1c", c0: "#161a3a", c1: "#78280e", c2: "#c2410c", c3: "#f08034", c4: "#ffe4c4", bloom: 0.9, bloomWide: 0.35 },
+  "Terracotta on black": { bg: "#060505", c0: "#1d1713", c1: "#6a240a", c2: "#c2410c", c3: "#f08034", c4: "#ffe4c4", bloom: 0.9, bloomWide: 0.35 },
+  "Violet dusk": { bg: "#05060c", c0: "#1b2350", c1: "#5b2f6e", c2: "#e0502a", c3: "#ff9a5a", c4: "#fff1d6", bloom: 1.1, bloomWide: 0.5 },
+  // on light backgrounds the logic turns into ink: the more light in the scene, the more saturated the terracotta on paper
+  "Light": { bg: "#ffffff", c0: "#e8e3de", c1: "#f2c6af", c2: "#e07a4a", c3: "#c2410c", c4: "#a3350a", bloom: 0.35, bloomWide: 0.15 },
+  "Ink on paper": { bg: "#f3eee6", c0: "#dcd4c9", c1: "#e8b597", c2: "#d4602c", c3: "#b83c0b", c4: "#8c2d08", bloom: 0.25, bloomWide: 0.1 },
+};
+const FORMATS = { "16:9 1920×1080": [1920, 1080], "9:16 1080×1920": [1080, 1920], "1:1 1080×1080": [1080, 1080] };
+
+// every shape is an SVG. Light shapes carry the mode they start in: "tones" uses the SVG's own shades
+// (sphere and ring are gradients), "silhouette" lights up the cutout. Cell shapes stretch to fill the cell.
+const G = (stops) => `<defs><radialGradient id="g">${stops.map(([o, c, a = 1]) => `<stop offset="${o}" stop-color="${c}" stop-opacity="${a}"/>`).join("")}</radialGradient></defs>`;
+const SV = (vb, body, extra = "") => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}"${extra}>${body}</svg>`;
+const LIGHT_SHAPES = {
+  sparkle: { name: "Sparkle", mode: "silhouette", svg: SV("21 46 132 132", '<path stroke="#000" stroke-width="3" stroke-linejoin="round" d="M87 48Q98 101 151 112 98 123 87 176 76 123 23 112 76 101 87 48Z"/>') },
+  sphere: { name: "Sphere", mode: "tones", svg: SV("0 0 100 100", G([[0, "#fff"], [0.3, "#c8c8c8"], [0.7, "#4a4a4a"], [1, "#000", 0]]) + '<circle cx="50" cy="50" r="50" fill="url(#g)"/>') },
+  ring: { name: "Ring", mode: "tones", svg: SV("0 0 100 100", G([[0, "#000", 0], [0.5, "#000", 0], [0.72, "#fff"], [0.86, "#555"], [1, "#000", 0]]) + '<circle cx="50" cy="50" r="50" fill="url(#g)"/>') },
+  square: { name: "Square", mode: "silhouette", svg: SV("0 0 100 100", '<rect x="14" y="14" width="72" height="72"/>') },
+  diamond: { name: "Diamond", mode: "silhouette", svg: SV("0 0 100 100", '<path d="M50 2.5 88 50 50 97.5 12 50Z"/>') },
+  hourglass: { name: "Hourglass", mode: "silhouette", svg: SV("0 0 100 100", '<path d="M20 2.5H80L53.5 50 80 97.5H20L46.5 50Z"/>') },
+};
+const STRETCH = ' preserveAspectRatio="none"';
+const CELL_SHAPES = {
+  square: { name: "Square", svg: SV("0 0 100 100", '<rect width="100" height="100"/>', STRETCH) },
+  circle: { name: "Circle", svg: SV("0 0 100 100", '<circle cx="50" cy="50" r="50"/>', STRETCH) },
+  diamond: { name: "Diamond", svg: SV("0 0 100 100", '<path d="M50 0 100 50 50 100 0 50Z"/>', STRETCH) },
+  cross: { name: "Cross", svg: SV("0 0 99 99", '<path d="M33 0H66V33H99V66H66V99H33V66H0V33H33Z"/>', STRETCH) },
+  line: { name: "Horizontal line", svg: SV("0 0 99 99", '<rect y="33" width="99" height="33"/>', STRETCH) },
+};
+const names = (lib, extra) => Object.assign(Object.fromEntries(Object.entries(lib).map(([k, v]) => [k, v.name])), extra);
+
+const DEFAULTS = {
+  svgLight: "", svgCell: "", svgMode: "silhouette",
+  format: "16:9 1920×1080", text: "Litgrid", textSize: 0.16, textX: 0.36, textY: 0.52, volume: 0.45,
+  light: "sparkle", shapeX: 0.78, shapeY: 0.5, shapeSize: 0.3, spin: 0, followMouse: false, smoothing: 0.85,
+  trail: true, trailDur: 1.6, trailStrength: 0.8, trailTaper: 0.5, trailSpacing: 0.25,
+  deform: true, deformAmount: 1, deformMax: 2.2, ambient: 0.04, overlay: true, mirror: true,
+  stepX: 12, stepY: 12, gapX: 2, gapY: 4,
+  cellShape: "square", mode: "fixed", offBelow: 0.18, hollowAbove: 0.62, outline: 2, dot: 3, core: 0.55,
+  colorSource: "palette", contrast: 1, ...PRESETS["Terracotta on night"], scanlines: 0,
+  animate: true, fps: 24, pulse: 0.06, drift: 0, flicker: 0.05, flickerEvery: 3,
+};
+
+const SCHEMA = [
+  ["Scene", [
+    ["format", "select", "Format", Object.keys(FORMATS)],
+    ["text", "text", "Text"],
+    ["textSize", "range", "Text size", 0.05, 0.9, 0.01],
+    ["textX", "range", "Text: horizontal", 0, 1, 0.01],
+    ["textY", "range", "Text: vertical", 0, 1, 0.01],
+    ["volume", "range", "Text volume (darkens toward the bottom)", 0, 1, 0.01],
+    ["ambient", "range", "Ambient light", 0, 0.4, 0.01],
+    ["overlay", "check", "Text and shape on top of media"],
+    ["mirror", "check", "Mirror the webcam"],
+  ]],
+  ["Shape", [
+    ["light", "select", "Shape", [...Object.keys(LIGHT_SHAPES), "custom", "none"], names(LIGHT_SHAPES, { custom: "My SVG", none: "None (text only)" })],
+    ["svgPanel", "light"],
+    ["svgMode", "select", "The SVG becomes", ["silhouette", "tones"], { silhouette: "Lit silhouette (ignores the SVG colors)", tones: "The SVG's own tones (light lights up, dark stays off)" }],
+    ["followMouse", "check", "Follow the mouse (or finger)"],
+    ["smoothing", "range", "Follow delay", 0, 0.97, 0.01],
+    ["trail", "check", "Trail while following (fading tail)"],
+    ["trailDur", "range", "Trail: duration (s)", 0.1, 3, 0.05],
+    ["trailStrength", "range", "Trail: strength", 0, 1, 0.01],
+    ["trailTaper", "range", "Trail: taper at the tip", 0, 1, 0.01],
+    ["trailSpacing", "range", "Trail: spacing between shapes (2 = touching)", 0.1, 5, 0.05],
+    ["deform", "check", "Deform with the force of movement"],
+    ["deformAmount", "range", "Deform: sensitivity", 0, 3, 0.01],
+    ["deformMax", "range", "Deform: max stretch", 1, 4, 0.05],
+    ["shapeX", "range", "Horizontal", 0, 1, 0.01],
+    ["shapeY", "range", "Vertical", 0, 1, 0.01],
+    ["shapeSize", "range", "Size", 0.1, 3, 0.01],
+    ["spin", "range", "Spin (turns per second)", -1, 1, 0.01],
+  ]],
+  ["Cell", [
+    ["cellShape", "select", "Cell shape", [...Object.keys(CELL_SHAPES), "custom"], names(CELL_SHAPES, { custom: "My SVG" })],
+    ["svgPanel", "cell"],
+    ["stepX", "range", "Width (px)", 4, 48, 1],
+    ["stepY", "range", "Height (px)", 4, 48, 1],
+    ["gapX", "range", "Gap between columns (px)", 0, 16, 1],
+    ["gapY", "range", "Gap between rows (px)", 0, 16, 1],
+    ["mode", "select", "How brightness becomes a cell", ["fixed", "variable", "solid"], { fixed: "Fixed: off, solid, hollow", variable: "Size follows brightness", solid: "Always solid" }],
+    ["offBelow", "range", "Below this, dim dot", 0, 1, 0.01],
+    ["hollowAbove", "range", "Above this, hollow", 0, 1.01, 0.01],
+    ["outline", "range", "Outline width (px)", 1, 8, 1],
+    ["dot", "range", "Dim dot size (px)", 0, 12, 1],
+    ["core", "range", "Hollow core brightness", 0, 1, 0.01],
+  ]],
+  ["Color", [
+    ["presets"],
+    ["colorSource", "select", "Color source", ["palette", "media"], { palette: "Palette below (by brightness)", media: "Original media color" }],
+    ["swatches"],
+    ["contrast", "range", "Contrast (brightness curve)", 0.3, 3, 0.01],
+  ]],
+  ["Glow", [
+    ["bloom", "range", "Near glow", 0, 2.5, 0.01],
+    ["bloomWide", "range", "Wide glow", 0, 2.5, 0.01],
+    ["scanlines", "range", "Scanlines", 0, 0.8, 0.01],
+  ]],
+  ["Motion", [
+    ["animate", "check", "Animate"],
+    ["fps", "range", "Frames per second", 4, 60, 1],
+    ["pulse", "range", "Shape pulse", 0, 0.4, 0.01],
+    ["drift", "range", "Shape drift", 0, 0.4, 0.01],
+    ["flicker", "range", "Cell flicker", 0, 0.5, 0.01],
+    ["flickerEvery", "range", "Flicker changes every (frames)", 1, 30, 1],
+  ]],
+];
+const SWATCHES = [["bg", "bg"], ["c0", "dark"], ["c1", "low"], ["c2", "mid"], ["c3", "high"], ["c4", "lit"]];
+
+const KEY = "litgrid-v1";
+let S = { ...DEFAULTS };
+try { const saved = JSON.parse(localStorage.getItem(KEY) || "null"); if (saved) S = { ...DEFAULTS, ...saved }; } catch {}
+if (!FORMATS[S.format]) S.format = DEFAULTS.format;   // saved format no longer in the list
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
+
+if (matchMedia("(prefers-reduced-motion: reduce)").matches) S.animate = false;
+
+// ---------- panel ----------
+const panel = document.getElementById("panel");
+const inputs = {}, editors = {}, reports = {};
+const SVG_KEY = { light: "svgLight", cell: "svgCell" }, SEL_KEY = { light: "light", cell: "cellShape" }, LIB = { light: LIGHT_SHAPES, cell: CELL_SHAPES };
+function svgText(target) {
+  const sel = S[SEL_KEY[target]];
+  return sel === "custom" ? S[SVG_KEY[target]] : (LIB[target][sel] || Object.values(LIB[target])[0]).svg;
+}
+function fmt(v, step) { return step >= 1 ? String(Math.round(v)) : Number(v).toFixed(2); }
+function buildPanel() {
+  panel.innerHTML = "";
+  SCHEMA.forEach(([group, fields], gi) => {
+    const d = document.createElement("details"); if (gi < 4) d.open = true;
+    d.innerHTML = `<summary>${group}</summary>`;
+    const box = document.createElement("div"); box.className = "fields"; d.append(box);
+    for (const [key, type, label, a, b, c] of fields) {
+      if (key === "presets") {
+        const p = document.createElement("div"); p.className = "presets";
+        for (const name of Object.keys(PRESETS)) {
+          const bt = document.createElement("button"); bt.type = "button"; bt.textContent = name;
+          bt.onclick = () => { Object.assign(S, PRESETS[name]); syncPanel(); changed(); };
+          p.append(bt);
+        }
+        box.append(p); continue;
+      }
+      if (key === "svgPanel") {
+        const target = type, id = "f-svg-" + target;
+        const file = document.createElement("label"); file.className = "file";
+        file.innerHTML = `Load .svg file<input type="file" accept=".svg,image/svg+xml">`;
+        const row = document.createElement("div"); row.className = "row";
+        row.innerHTML = `<label for="${id}">SVG code (edit and apply)</label><span></span><textarea id="${id}" rows="5" spellcheck="false"></textarea>`;
+        const acts = document.createElement("div"); acts.className = "svg-actions";
+        acts.innerHTML = '<button type="button">Apply</button>';
+        const msg = document.createElement("p"); msg.className = "hint"; msg.setAttribute("role", "status");
+        msg.textContent = "Use shapes and paths only. Images or external fonts inside the SVG won't load.";
+        box.append(file, row, acts, msg);
+        const ta = row.querySelector("textarea");
+        const apply = () => { S[SVG_KEY[target]] = ta.value; S[SEL_KEY[target]] = "custom"; reports[target] = (m) => { msg.textContent = m; }; syncPanel(); changed(); };
+        acts.querySelector("button").onclick = apply;
+        file.querySelector("input").onchange = async (e) => { const f = e.target.files[0]; if (f) { ta.value = await f.text(); apply(); } };
+        editors[target] = ta;
+        continue;
+      }
+      if (key === "swatches") {
+        const w = document.createElement("div"); w.className = "swatches";
+        for (const [k, l] of SWATCHES) {
+          const lab = document.createElement("label"); lab.htmlFor = "f-" + k;
+          const inp = document.createElement("input"); inp.type = "color"; inp.id = "f-" + k;
+          inp.oninput = () => { S[k] = inp.value; changed(); };
+          inputs[k] = { el: inp, type: "color" };
+          lab.append(inp, l); w.append(lab);
+        }
+        box.append(w); continue;
+      }
+      const row = document.createElement("div");
+      if (type === "check") {
+        row.className = "check";
+        const inp = document.createElement("input"); inp.type = "checkbox"; inp.id = "f-" + key;
+        const lab = document.createElement("label"); lab.htmlFor = inp.id; lab.textContent = label;
+        inp.onchange = () => { S[key] = inp.checked; changed(); };
+        inputs[key] = { el: inp, type };
+        row.append(inp, lab); box.append(row); continue;
+      }
+      row.className = "row";
+      const lab = document.createElement("label"); lab.htmlFor = "f-" + key; lab.textContent = label;
+      const out = document.createElement("output"); out.htmlFor = "f-" + key;
+      let inp;
+      if (type === "range") {
+        inp = document.createElement("input"); inp.type = "range"; inp.min = a; inp.max = b; inp.step = c;
+        inp.oninput = () => { S[key] = +inp.value; out.textContent = fmt(S[key], c); changed(); };
+      } else if (type === "select") {
+        inp = document.createElement("select");
+        for (const o of a) { const op = document.createElement("option"); op.value = o; op.textContent = b ? b[o] : o; inp.append(op); }
+        inp.onchange = () => {
+          if (key === "light" && LIGHT_SHAPES[inp.value]) S.svgMode = LIGHT_SHAPES[inp.value].mode;
+          const target = key === "light" ? "light" : key === "cellShape" ? "cell" : null;
+          if (target && inp.value === "custom" && !S[SVG_KEY[target]]) S[SVG_KEY[target]] = editors[target].value;   // "My SVG" starts from the current shape
+          S[key] = inp.value; syncPanel(); changed();
+        };
+      } else {
+        inp = document.createElement("input"); inp.type = "text"; inp.maxLength = 24;
+        inp.oninput = () => { S[key] = inp.value; changed(); };
+      }
+      inp.id = "f-" + key;
+      inputs[key] = { el: inp, type, out, step: c };
+      row.append(lab, out, inp); box.append(row);
+    }
+    panel.append(d);
+  });
+  syncPanel();
+}
+function syncPanel() {
+  for (const [k, f] of Object.entries(inputs)) {
+    if (f.type === "check") f.el.checked = !!S[k];
+    else f.el.value = S[k];
+    if (f.type === "range") f.out.textContent = fmt(S[k], f.step);
+  }
+  for (const [target, ta] of Object.entries(editors)) if (document.activeElement !== ta) ta.value = svgText(target);
+  playBtn.textContent = S.animate ? "Pause" : "Animate";
+}
+
+// ---------- render ----------
+const cv = document.getElementById("stage"), ctx = cv.getContext("2d");
+const mk = () => { const c = document.createElement("canvas"); return [c, c.getContext("2d", { willReadFrequently: true })]; };
+const [scene, sc] = mk(), [grid, gc] = mk(), [cells, cc] = mk(), [dots, dc] = mk(), [b1, b1c] = mk(), [b2, b2c] = mk(), [b3, b3c] = mk();
+let bgRGB = [0, 0, 0];
+let W = 1920, H = 1080, cols = 0, rows = 0, noise = new Float32Array(0), frame = 0, t = 0;
+let media = null, mediaW = 0, mediaH = 0, mediaCam = false, stream = null;
+const mouse = { x: 0, y: 0, tx: 0, ty: 0, on: false };
+const svgs = { light: { img: null, w: 1, h: 1, ver: 0, stretch: false, src: null }, cell: { img: null, w: 1, h: 1, ver: 0, stretch: false, src: null } };
+const [lightBuf, lb] = mk();
+const spriteCache = new Map(); let spriteKey = "";
+function syncSvgs() { for (const target of ["light", "cell"]) { const txt = svgText(target); if (txt !== svgs[target].src) loadSvg(target, txt); } }
+
+function loadSvg(target, text) {
+  const o = svgs[target], report = reports[target]; reports[target] = null;
+  o.src = text;
+  let doc = null;
+  try { doc = new DOMParser().parseFromString(text || "", "image/svg+xml"); } catch {}
+  const el = doc && doc.documentElement;
+  if (!el || el.nodeName.toLowerCase() !== "svg" || doc.querySelector("parsererror")) {
+    report?.("That isn't a valid SVG. The code must start with <svg …> and end with </svg>.");
+    return;
+  }
+  if (!el.getAttribute("xmlns")) el.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  let w = parseFloat(el.getAttribute("width")), h = parseFloat(el.getAttribute("height"));
+  const vb = (el.getAttribute("viewBox") || "").trim().split(/[\s,]+/).map(Number);
+  if (!(w > 0 && h > 0)) { if (vb.length === 4 && vb[2] > 0 && vb[3] > 0) { w = vb[2]; h = vb[3]; } else { w = h = 512; } }
+  if (vb.length !== 4) el.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  const k = 512 / Math.max(w, h); w *= k; h *= k;
+  el.setAttribute("width", w); el.setAttribute("height", h);
+  const stretch = el.getAttribute("preserveAspectRatio") === "none";
+  const im = new Image();
+  im.onload = () => { if (o.src !== text) return; Object.assign(o, { img: im, w, h, stretch }); o.ver++; dirty = true; report?.("SVG applied."); };
+  im.onerror = () => report?.("The browser couldn't draw that SVG. Remove images, fonts and external links and try again.");
+  im.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(el));
+}
+function fitSvg(g, o, bw, bh) {
+  let w = bw, h = bh;
+  if (!o.stretch) { const ar = o.w / o.h; if (ar > bw / bh) h = bw / ar; else w = bh * ar; }
+  g.drawImage(o.img, (bw - w) / 2, (bh - h) / 2, w, h);
+}
+function drawLight(x, y, r) {
+  if (!prepLight(r)) return;
+  stampLight(x, y, r, 1, dfm);
+}
+// the shape is rasterized once per frame; the trail stamps the same image many times
+function prepLight(r) {
+  if (!svgs.light.img) return false;
+  const size = Math.max(2, Math.ceil(2 * r * scene.width / W));
+  lightBuf.width = size; lightBuf.height = size;
+  fitSvg(lb, svgs.light, size, size);
+  if (S.svgMode === "silhouette") {
+    lb.globalCompositeOperation = "source-in";
+    const g = lb.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size * 0.6);
+    g.addColorStop(0, "#fff"); g.addColorStop(1, "#6a6a6a");
+    lb.fillStyle = g; lb.fillRect(0, 0, size, size);
+  }
+  return true;
+}
+function stampLight(x, y, r, alpha = 1, d = null) {
+  sc.save(); sc.globalAlpha = alpha;
+  sc.translate(x, y);
+  if (d && d.s > 1.001) { sc.rotate(d.ang); sc.scale(d.s, 1 / d.s); sc.rotate(-d.ang); }   // stretch along the movement, keep the area
+  sc.rotate(t * S.spin * 2 * Math.PI);
+  sc.drawImage(lightBuf, -r, -r, 2 * r, 2 * r);
+  sc.restore();
+}
+// one silhouette tinted per color, cached until the cell or the SVG changes
+function sprite(color, bw, bh) {
+  const key = `${bw}x${bh}|${svgs.cell.ver}`;
+  if (key !== spriteKey || spriteCache.size > 5000) { spriteCache.clear(); spriteKey = key; }
+  let c = spriteCache.get(color);
+  if (!c) {
+    c = document.createElement("canvas"); c.width = bw; c.height = bh;
+    const g = c.getContext("2d");
+    if (svgs.cell.img) {
+      fitSvg(g, svgs.cell, bw, bh);
+      g.globalCompositeOperation = "source-in";
+    }
+    g.fillStyle = color; g.fillRect(0, 0, bw, bh);
+    spriteCache.set(color, c);
+  }
+  return c;
+}
+let cellW = 1, cellH = 1;
+let lut = [], lutDim = [], lutRGB = [];
+
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+function buildLut() {
+  const stops = [S.c0, S.c1, S.c2, S.c3, S.c4].map(hex), pos = [0, 0.3, 0.55, 0.8, 1], bg = hex(S.bg);
+  lut = []; lutDim = []; lutRGB = [];
+  for (let i = 0; i < 256; i++) {
+    const v = i / 255; let j = 0; while (j < 3 && v > pos[j + 1]) j++;
+    const f = (v - pos[j]) / (pos[j + 1] - pos[j]);
+    const rgb = [0, 1, 2].map(n => Math.round(stops[j][n] + (stops[j + 1][n] - stops[j][n]) * f));
+    lutRGB.push(rgb);
+    lut.push(`rgb(${rgb})`);
+    lutDim.push(`rgb(${rgb.map((x, n) => Math.round(bg[n] + (x - bg[n]) * S.core))})`);   // the core pulls toward the background, on dark and on light
+  }
+}
+function sizeAll() {
+  [W, H] = FORMATS[S.format] || FORMATS[DEFAULTS.format];
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  cols = Math.max(1, Math.floor(W / S.stepX)); rows = Math.max(1, Math.floor(H / S.stepY));
+  scene.width = cols * 3; scene.height = rows * 3;
+  grid.width = cols; grid.height = rows;
+  cells.width = W; cells.height = H; dots.width = W; dots.height = H;
+  b1.width = Math.ceil(W / 2); b1.height = Math.ceil(H / 2);
+  b2.width = Math.ceil(W / 8); b2.height = Math.ceil(H / 8);
+  b3.width = Math.ceil(W / 32); b3.height = Math.ceil(H / 32);
+  if (noise.length !== cols * rows) { noise = new Float32Array(cols * rows); reroll(); }
+}
+function reroll() { for (let i = 0; i < noise.length; i++) noise[i] = Math.random() * 2 - 1; }
+
+function drawScene() {
+  sc.setTransform(1, 0, 0, 1, 0, 0);
+  sc.globalCompositeOperation = "source-over";
+  sc.fillStyle = "#000"; sc.fillRect(0, 0, scene.width, scene.height);
+  sc.setTransform(scene.width / W, 0, 0, scene.height / H, 0, 0);
+  sc.imageSmoothingQuality = "high";
+  if (media && mediaW) {
+    const s = Math.max(W / mediaW, H / mediaH), w = mediaW * s, h = mediaH * s;
+    sc.save();
+    if (mediaCam && S.mirror) { sc.translate(W, 0); sc.scale(-1, 1); }
+    sc.drawImage(media, (W - w) / 2, (H - h) / 2, w, h);
+    sc.restore();
+  }
+  const overlay = !media || S.overlay;
+  sc.globalCompositeOperation = "lighter";
+  if (S.ambient > 0) {
+    const g = sc.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, `rgba(255,255,255,${S.ambient})`); g.addColorStop(1, `rgba(255,255,255,${S.ambient * 0.3})`);
+    sc.fillStyle = g; sc.fillRect(0, 0, W, H);
+  }
+  if (overlay && S.light !== "none") {
+    const r = Math.max(1, S.shapeSize * H * (1 + S.pulse * Math.sin(t * 2 * Math.PI / 2.4)));
+    let x, y;
+    if (S.followMouse && mouse.on) { x = mouse.x; y = mouse.y; }
+    else { x = S.shapeX * W + S.drift * W * Math.sin(t * 2 * Math.PI / 7); y = S.shapeY * H + S.drift * H * 0.5 * Math.cos(t * 2 * Math.PI / 9); }
+    updateMotion(x, y);
+    if (S.trail && S.followMouse && mouse.on) drawTrail(x, y, r);
+    else { trail.length = 0; drawLight(x, y, r); }
+  }
+  if (overlay && S.text) {
+    const size = S.textSize * H, y = S.textY * H;
+    sc.font = `800 ${size}px Unbounded, "Arial Black", sans-serif`;
+    sc.textAlign = "center"; sc.textBaseline = "middle";
+    const g = sc.createLinearGradient(0, y - size * 0.5, 0, y + size * 0.5);
+    const lo = Math.round(255 * (1 - S.volume));
+    g.addColorStop(0, "#fff"); g.addColorStop(1, `rgb(${lo},${lo},${lo})`);
+    sc.fillStyle = g; sc.fillText(S.text, S.textX * W, y);
+  }
+  gc.imageSmoothingQuality = "high";
+  gc.clearRect(0, 0, cols, rows);
+  gc.drawImage(scene, 0, 0, cols, rows);
+  return gc.getImageData(0, 0, cols, rows).data;
+}
+
+// each cell is the tinted SVG silhouette; a hollow cell is the same silhouette with the core shrunk inside it
+function cellFill(x, y, w, h, color, g = cc) { g.drawImage(sprite(color, cellW, cellH), x, y, w, h); }
+function cellHollow(x, y, w, h, col, dim, cw) {
+  cc.drawImage(sprite(col, cellW, cellH), x, y, w, h);
+  cc.drawImage(sprite(dim, cellW, cellH), x + cw, y + cw, w - 2 * cw, h - 2 * cw);
+}
+
+function render() {
+  if (S.followMouse && mouse.on) {
+    const k = S.animate ? 1 - S.smoothing : 1;
+    mouse.x += (mouse.tx - mouse.x) * k; mouse.y += (mouse.ty - mouse.y) * k;
+  }
+  const data = drawScene();
+  cc.clearRect(0, 0, W, H); dc.clearRect(0, 0, W, H);   // dim dots on their own layer: they stay out of the glow
+  bgRGB = hex(S.bg);
+  const px = S.stepX, py = S.stepY;
+  const bw = Math.max(1, px - S.gapX), bh = Math.max(1, py - S.gapY);
+  cellW = bw; cellH = bh;
+  const ox = Math.floor((W - cols * px) / 2) + Math.floor(S.gapX / 2), oy = Math.floor((H - rows * py) / 2) + Math.floor(S.gapY / 2);
+  const cw = Math.min(S.outline, Math.floor(bw / 2), Math.floor(bh / 2));
+  const dot = Math.min(S.dot, bw, bh);
+  const fromMedia = S.colorSource === "media";
+  for (let r = 0; r < rows; r++) {
+    for (let k = 0; k < cols; k++) {
+      const i = r * cols + k, d = i * 4;
+      const R = data[d], G = data[d + 1], B = data[d + 2];
+      let v = (0.299 * R + 0.587 * G + 0.114 * B) / 255;
+      v = Math.pow(v, S.contrast) * (1 + noise[i] * S.flicker);
+      v = v < 0 ? 0 : v > 1 ? 1 : v;
+      const li = (v * 255) | 0;
+      let col, dim;
+      if (fromMedia) {
+        const m = Math.max(R, G, B) || 1, gain = Math.min(2.2, 255 / m) * 0.55 + 0.45 * v;
+        let rgb = [R, G, B].map(x => Math.min(255, Math.round(x * (0.6 + gain))));
+        rgb = rgb.map(x => (x >> 4) << 4);   // fewer distinct colors, fewer silhouettes to tint
+        col = `rgb(${rgb})`; dim = `rgb(${rgb.map((x, n) => Math.round(bgRGB[n] + (x - bgRGB[n]) * S.core))})`;
+      } else { col = lut[li]; dim = lutDim[li]; }
+      const x = ox + k * px, y = oy + r * py;
+      if (S.mode === "solid") { cellFill(x, y, bw, bh, col); continue; }
+      if (S.mode === "variable") {
+        const w = Math.round(bw * v), h = Math.round(bh * v);
+        if (w < 1 || h < 1) continue;
+        cellFill(x + ((bw - w) >> 1), y + ((bh - h) >> 1), w, h, col); continue;
+      }
+      if (v < S.offBelow) {
+        if (dot < 1) continue;
+        cellFill(x + ((bw - dot) >> 1), y + ((bh - dot) >> 1), dot, dot, col, dc);
+      } else if (v < S.hollowAbove || cw < 1) {
+        cellFill(x, y, bw, bh, col);
+      } else {
+        cellHollow(x, y, bw, bh, col, dim, cw);
+      }
+    }
+  }
+  ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
+  ctx.fillStyle = S.bg; ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(dots, 0, 0);
+  ctx.drawImage(cells, 0, 0);
+  if (S.bloom > 0 || S.bloomWide > 0) {
+    for (const c of [b1c, b2c, b3c]) { c.imageSmoothingQuality = "high"; }
+    b1c.clearRect(0, 0, b1.width, b1.height); b1c.drawImage(cells, 0, 0, b1.width, b1.height);
+    b2c.clearRect(0, 0, b2.width, b2.height); b2c.drawImage(b1, 0, 0, b2.width, b2.height);
+    b3c.clearRect(0, 0, b3.width, b3.height); b3c.drawImage(b2, 0, 0, b3.width, b3.height);
+    const [fr, fg, fb] = hex(S.bg), light = (0.299 * fr + 0.587 * fg + 0.114 * fb) / 255 > 0.5;
+    ctx.globalCompositeOperation = light ? "multiply" : "lighter";
+    ctx.imageSmoothingQuality = "high";
+    let a = S.bloom; while (a > 0) { ctx.globalAlpha = Math.min(1, a); ctx.drawImage(b2, 0, 0, W, H); a -= 1; }
+    a = S.bloomWide; while (a > 0) { ctx.globalAlpha = Math.min(1, a); ctx.drawImage(b3, 0, 0, W, H); a -= 1; }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+  }
+  if (S.scanlines > 0) {
+    ctx.fillStyle = `rgba(0,0,0,${S.scanlines})`;
+    for (let y = 0; y < H; y += 3) ctx.fillRect(0, y, W, 1);
+  }
+}
+
+// ---------- deformation ----------
+// smoothed velocity of the shape (mouse, drift or whatever moves it); becomes a stretch along the movement
+const motion = { px: null, py: null, at: 0, vx: 0, vy: 0 };
+let dfm = null;
+function updateMotion(x, y) {
+  const now = performance.now() / 1000, dt = now - motion.at;
+  if (motion.px === null || dt > 0.5) { motion.vx = motion.vy = 0; }
+  else if (dt > 0) {
+    const k = 1 - Math.exp(-dt * 12);
+    motion.vx += ((x - motion.px) / dt - motion.vx) * k; motion.vy += ((y - motion.py) / dt - motion.vy) * k;
+  }
+  motion.px = x; motion.py = y; motion.at = now;
+  if (!S.deform) { dfm = null; return; }
+  const speed = Math.hypot(motion.vx, motion.vy) / W;   // screen widths per second
+  dfm = { ang: Math.atan2(motion.vy, motion.vx), s: 1 + Math.min(S.deformMax - 1, S.deformAmount * speed * 0.8) };
+}
+
+// ---------- trail ----------
+// points the shape went through, spaced by distance (a still mouse doesn't pile up) and filled in
+// between frames so the tail comes out continuous. With "lighter" the stamps add up, so each one
+// only carries the share of brightness that fits the overlap.
+const trail = [];
+function drawTrail(x, y, r) {
+  const now = performance.now() / 1000, dur = S.trailDur, gap = Math.max(2, r * S.trailSpacing);
+  const lastP = trail[trail.length - 1];
+  if (!lastP) trail.push({ x, y, at: now, d: dfm });
+  else {
+    const d = Math.hypot(x - lastP.x, y - lastP.y), n = Math.min(60, Math.floor(d / gap));
+    for (let i = 1; i <= n; i++) {
+      const f = i / n;
+      trail.push({ x: lastP.x + (x - lastP.x) * f, y: lastP.y + (y - lastP.y) * f, at: lastP.at + (now - lastP.at) * f, d: dfm });
+    }
+  }
+  while (trail.length && now - trail[0].at > dur) trail.shift();
+  if (trail.length > 600) trail.splice(0, trail.length - 600);
+  if (!prepLight(r)) return;
+  const k = S.trailStrength * Math.min(1, gap / (2 * r));   // separate stamps don't add up: each carries the full strength
+  for (let i = 0; i < trail.length - 1; i++) {
+    const p = trail[i], a = 1 - (now - p.at) / dur;
+    if (a <= 0) continue;
+    stampLight(p.x, p.y, r * (1 - S.trailTaper * (1 - a)), Math.min(1, k * a * a), p.d);
+  }
+  stampLight(x, y, r, 1, dfm);
+}
+
+// ---------- loop ----------
+const stat = document.getElementById("stat");
+let last = 0, acc = 0, fpsN = 0, fpsT = 0, fpsReal = 0, dirty = true;
+function loop(now) {
+  const dt = Math.min(0.25, (now - last) / 1000 || 0); last = now;
+  if (S.animate) {
+    acc += dt;
+    if (acc >= 1 / S.fps) {
+      t += acc; acc = 0; frame++;
+      if (frame % S.flickerEvery === 0) reroll();
+      render(); fpsN++; dirty = false;
+    }
+  } else if (dirty || trail.length > 1 || (dfm && dfm.s > 1.01) || (media && media.tagName === "VIDEO" && !media.paused)) { render(); dirty = false; }
+  fpsT += dt; if (fpsT >= 1) { fpsReal = fpsN; fpsN = 0; fpsT = 0; }
+  stat.textContent = `${cols}×${rows} cells · ${W}×${H} px${S.animate ? ` · ${fpsReal} fps` : ""}`;
+  requestAnimationFrame(loop);
+}
+function changed() {
+  sizeAll(); buildLut(); syncSvgs(); save(); dirty = true;
+  playBtn.textContent = S.animate ? "Pause" : "Animate";
+  cv.style.cursor = S.followMouse ? "crosshair" : "";
+  cv.parentElement.style.background = S.bg;
+  const [fr, fg, fb] = hex(S.bg);
+  document.documentElement.classList.toggle("light", (0.299 * fr + 0.587 * fg + 0.114 * fb) / 255 > 0.5);
+  cv.style.touchAction = S.followMouse ? "none" : "";
+}
+cv.addEventListener("pointermove", (e) => {
+  const b = cv.getBoundingClientRect();
+  mouse.tx = (e.clientX - b.left) / b.width * W; mouse.ty = (e.clientY - b.top) / b.height * H;
+  if (!mouse.on) { mouse.x = mouse.tx; mouse.y = mouse.ty; mouse.on = true; }
+  if (S.followMouse && !S.animate) dirty = true;
+});
+cv.addEventListener("pointerdown", (e) => { if (S.followMouse) cv.setPointerCapture(e.pointerId); });
+
+// ---------- buttons ----------
+const playBtn = document.getElementById("play");
+playBtn.onclick = () => { S.animate = !S.animate; syncPanel(); changed(); };
+document.getElementById("reset").onclick = () => {
+  S = { ...DEFAULTS }; syncPanel(); changed();
+};
+document.getElementById("copy").onclick = async (e) => {
+  const txt = JSON.stringify(S, null, 2), btn = e.currentTarget;
+  try { await navigator.clipboard.writeText(txt); btn.textContent = "Settings copied"; }
+  catch {
+    const ta = document.createElement("textarea"); ta.value = txt; ta.setAttribute("aria-label", "Settings");
+    ta.style.cssText = "width:100%;height:160px;font:12px var(--mono);background:var(--bg);color:var(--fg);border:1px solid var(--line)";
+    btn.closest(".stage-wrap").append(ta); ta.select(); btn.textContent = "Select and copy below";
+  }
+  setTimeout(() => { btn.textContent = "Copy settings"; }, 2200);
+};
+document.getElementById("shot").onclick = () => {
+  render();
+  const img = document.getElementById("snapImg"); img.src = cv.toDataURL("image/png");
+  document.getElementById("snap").hidden = false;
+};
+const dropBtn = document.getElementById("dropMedia"), camBtn = document.getElementById("cam"), photoBtn = document.getElementById("photo");
+const note = document.getElementById("note");
+const showNote = (msg) => { note.textContent = msg; note.hidden = !msg; };
+function stopCam() {
+  if (stream) stream.getTracks().forEach(tr => tr.stop());
+  stream = null; camBtn.textContent = "Use webcam"; photoBtn.hidden = true;
+}
+function clearMedia() {
+  if (media && media.tagName === "VIDEO") media.pause();
+  stopCam(); media = null; mediaW = 0; mediaCam = false;
+  dropBtn.hidden = true; document.getElementById("media").value = ""; dirty = true;
+}
+function setMedia(el, w, h, cam) {
+  media = el; mediaW = w; mediaH = h; mediaCam = cam; dropBtn.hidden = false; dirty = true;
+}
+document.getElementById("media").onchange = (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const url = URL.createObjectURL(f);
+  if (media && media.tagName === "VIDEO") media.pause();
+  stopCam(); showNote("");
+  if (f.type.startsWith("video")) {
+    const v = document.createElement("video"); v.muted = true; v.loop = true; v.playsInline = true; v.src = url;
+    v.onloadedmetadata = () => { setMedia(v, v.videoWidth, v.videoHeight, false); v.play().catch(() => {}); };
+  } else {
+    const im = new Image(); im.onload = () => setMedia(im, im.naturalWidth, im.naturalHeight, false); im.src = url;
+  }
+};
+dropBtn.onclick = clearMedia;
+camBtn.onclick = async () => {
+  if (stream) { clearMedia(); return; }
+  try {
+    if (!navigator.mediaDevices?.getUserMedia) throw new Error("not supported");
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+  } catch {
+    stream = null;
+    showNote("The browser didn't allow the webcam here. The webcam needs the page served over HTTPS or localhost, and permission to use the camera. On mobile, “Use image or video” can already take a photo with the camera.");
+    return;
+  }
+  if (media && media.tagName === "VIDEO") media.pause();
+  const v = document.createElement("video"); v.muted = true; v.playsInline = true; v.srcObject = stream;
+  await v.play().catch(() => {});
+  setMedia(v, v.videoWidth || 1280, v.videoHeight || 720, true);
+  v.onloadedmetadata = () => { mediaW = v.videoWidth; mediaH = v.videoHeight; };
+  camBtn.textContent = "Stop webcam"; photoBtn.hidden = false; showNote("");
+};
+photoBtn.onclick = () => {
+  if (!media || !mediaCam) return;
+  const c = document.createElement("canvas"); c.width = mediaW; c.height = mediaH;
+  c.getContext("2d").drawImage(media, 0, 0, mediaW, mediaH);
+  stopCam();
+  setMedia(c, mediaW, mediaH, true);
+  showNote("Photo taken. The effect now runs on it; “Remove media” goes back to the scene.");
+};
+
+buildPanel(); changed();
+document.fonts.load('800 100px "Unbounded"').finally(() => { dirty = true; });
+requestAnimationFrame(loop);
+</script>
+
+</body>
+</html>

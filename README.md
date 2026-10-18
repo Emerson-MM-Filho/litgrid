@@ -1,0 +1,45 @@
+# Litgrid
+
+A grid of cells that lights up with the light in the scene: dark becomes a dim
+dot, mid becomes a solid cell, and bright becomes a hollow, lit cell, with glow
+and scanlines on top. It's the CRT/LED panel look, rebuilt in the browser with
+the 2D canvas.
+
+## Running it
+
+Live at https://emerson-mm-filho.github.io/litgrid/ (the webcam works there).
+
+It's a single page with no build step and no dependencies: open `index.html` in
+a browser.
+
+On your machine, the webcam only works when the page is served from `localhost`:
+
+```sh
+python3 -m http.server 8765
+```
+
+Then open http://localhost:8765.
+
+## What you can change
+
+- **Scene:** output format (16:9, 9:16 or 1:1), text, ambient light.
+- **Shape:** the light shape is always an SVG. There are built-in ones (Sparkle,
+  Sphere, Ring, Square, Diamond, Hourglass) and any SVG of your own, pasted or
+  loaded from a file. It can follow the mouse, leave a fading trail and stretch
+  with the speed of movement.
+- **Cell:** each cell is drawn from an SVG too (square, circle, diamond, cross,
+  line or your own), plus the grid size, the gaps and the thresholds between dim,
+  solid and hollow.
+- **Color:** dark and light presets, or a hand-picked palette. It can also take
+  the colors from the input media.
+- **Glow and Motion:** bloom, scanlines, pulse, drift and flicker.
+
+An image, a video or the webcam can replace the scene as input. "Freeze frame"
+shows the current frame as a PNG you can save, and "Copy settings" copies every
+setting as JSON.
+
+Settings are kept in the browser. "Reset" goes back to the defaults.
+
+## License
+
+[MIT](LICENSE)
