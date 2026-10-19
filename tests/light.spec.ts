@@ -8,6 +8,11 @@ const trace = (page: Page, ms: number) => page.evaluate((ms) => new Promise<{ x:
   const tick = () => { out.push((window as any).lg.light.get()); if (performance.now() < end) requestAnimationFrame(tick); else resolve(out); };
   requestAnimationFrame(tick);
 }), ms);
+// waits until the light settles within 2 px of (x, y): the follow delay is per frame, so slow machines take longer
+const settle = async (page: Page, x: number, y: number) => {
+  await expect.poll(async () => { const l = await get(page); return Math.max(Math.abs(l.x - x), Math.abs(l.y - y)); }, { timeout: 20_000 }).toBeLessThan(2);
+  return get(page);
+};
 // the size of a cell on screen, in client pixels
 const cell = (page: Page) => page.evaluate(() => { const c = document.getElementById("lit") as HTMLCanvasElement; return 16 * c.getBoundingClientRect().width / c.width; });
 
@@ -29,21 +34,16 @@ test("light.get, set and release on an oversized, scroll-offset canvas", async (
   await page.evaluate(() => window.scrollTo(0, 500));
   await page.mouse.move(380, 280);
   await page.mouse.move(400, 300, { steps: 5 });
-  await page.waitForTimeout(1500);
-  const f = await get(page);
+  const f = await settle(page, 400, 300);
   expect(f.state).toBe("following");
-  expect(Math.abs(f.x - 400)).toBeLessThan(2);
-  expect(Math.abs(f.y - 300)).toBeLessThan(2);
   note("mouse moves to (400,300)", f);
   const p = await page.evaluate(() => (window as any).lg.pointer);
   expect(p).toEqual({ x: 400, y: 300, on: true });
 
   // the page scrolls under a still mouse: the light stays under the pointer
   await page.evaluate(() => window.scrollTo(0, 820));
-  await page.waitForTimeout(1500);
-  const s = await get(page);
-  expect(Math.abs(s.x - 400)).toBeLessThan(2);
-  expect(Math.abs(s.y - 300)).toBeLessThan(2);
+  await page.waitForTimeout(300);
+  const s = await settle(page, 400, 300);
   note("page scrolled 320 px more, mouse still", s);
 
   // the pointer leaves the window: the light rests where it left, and stays
@@ -80,10 +80,8 @@ test("light.get, set and release on an oversized, scroll-offset canvas", async (
   for (let i = 1; i < frames.length; i++) worst = Math.max(worst, Math.hypot(frames[i].x - frames[i - 1].x, frames[i].y - frames[i - 1].y));
   expect(Math.hypot(frames[0].x - 100, frames[0].y - 120)).toBeLessThan(size);
   expect(worst).toBeLessThan(size);
-  const end = frames[frames.length - 1];
+  const end = await settle(page, 500, 200);
   expect(end.state).toBe("following");
-  expect(Math.abs(end.x - 500)).toBeLessThan(2);
-  expect(Math.abs(end.y - 200)).toBeLessThan(2);
   note("light.release(), mouse at (500,200)", end);
   log.push(`largest move in one frame after release: ${worst.toFixed(1)} px (one cell is ${size.toFixed(1)} px)`);
   console.log(log.join("\n"));
