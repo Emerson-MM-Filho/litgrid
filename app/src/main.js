@@ -16,6 +16,9 @@ const cv = document.getElementById("stage");
 const stat = document.getElementById("stat");
 const playBtn = document.getElementById("play");
 const note = document.getElementById("note");
+const lightStat = document.getElementById("lightStat");
+// a short name for an element in the read-out: its tag, id or text
+const describe = (el) => el.id ? `#${el.id}` : `${el.tagName.toLowerCase()} "${(el.textContent || "").trim().slice(0, 20)}"`;
 
 // what the panel, the export and the agent tools share; S is reassigned on reset, so it's read through a getter
 const ed = {
@@ -37,6 +40,8 @@ ed.engine = createEngine(cv, {
     fpsT += dt; if (fpsT >= 1) { fpsReal = fpsN; fpsN = 0; fpsT = 0; }
     const { width, height, cols, rows } = ed.engine.info();
     stat.textContent = `${cols}×${rows} cells · ${width}×${height} px${S.animate ? ` · ${fpsReal} fps` : ""}`;
+    const l = ed.engine.light.get();
+    lightStat.textContent = `light: ${l.state} · ${Math.round(l.x)}, ${Math.round(l.y)}${l.element ? ` · ${describe(l.element)}` : ""}`;
   },
 });
 const panel = createPanel(ed);

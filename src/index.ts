@@ -4,7 +4,7 @@ import { createEngine } from "./engine";
 import type { Litgrid, LitgridOptions } from "./types";
 
 export { DEFAULTS, PRESETS, FORMATS, LIGHT_SHAPES, CELL_SHAPES } from "./config";
-export type { Band, Litgrid, LitgridOptions, MediaInput, Palette, Settings, ShapeTarget } from "./types";
+export type { Band, LightControl, LightInfo, LightState, LightTarget, Litgrid, LitgridOptions, MediaInput, Palette, PointerInfo, Settings, ShapeTarget } from "./types";
 
 /**
  * Starts litgrid on a canvas. Each call is an independent instance; `destroy()` releases it.
@@ -24,6 +24,8 @@ export function createLitgrid(canvas: HTMLCanvasElement, options: LitgridOptions
     burst: e.burst,
     press: e.press,
     snapshot: e.snapshot,
+    light: e.light,
+    get pointer() { return e.pointer(); },
     destroy: e.destroy,
   };
   return lg;

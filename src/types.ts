@@ -68,6 +68,50 @@ export interface LitgridOptions {
   pointer?: EventTarget;
 }
 
+/**
+ * What the light is doing:
+ * - `waiting`: following is on and the pointer has not been on the page yet; the light sits at `shapeX`/`shapeY`.
+ * - `following`: it follows the pointer.
+ * - `resting`: the pointer left the page and the light stays where it left (or following is off and
+ *   the light sits at `shapeX`/`shapeY`, with its drift).
+ * - `manual`: the page drives it with `light.set()`.
+ * - `still`: reduced motion, or animation off.
+ */
+export type LightState = "waiting" | "following" | "resting" | "manual" | "still";
+
+export interface LightInfo {
+  state: LightState;
+  /** Where the light is, in client (viewport) pixels. */
+  x: number;
+  y: number;
+  /** The element holding the light, if any. */
+  element: Element | null;
+}
+
+/** What `light.set()` takes; any field left out keeps its value. */
+export interface LightTarget {
+  /** Position in client (viewport) pixels. */
+  x?: number;
+  y?: number;
+  /** Stretch, as the `stretchX`/`stretchY` settings. */
+  stretchX?: number;
+  stretchY?: number;
+  /** Radius, as the `shapeSize` setting. */
+  size?: number;
+}
+
+export interface LightControl {
+  /** The light's state and position. */
+  get(): LightInfo;
+  /** Takes manual control: the light stops following and goes where it is told, until `release()`. */
+  set(target: LightTarget): void;
+  /** Hands control back, starting from where the light is. */
+  release(): void;
+}
+
+/** Where the instance thinks the pointer is, in client pixels, and whether it is on the page. */
+export interface PointerInfo { readonly x: number; readonly y: number; readonly on: boolean }
+
 export interface Litgrid {
   /** Resolves after the first frame with the media and the SVGs loaded. */
   readonly ready: Promise<Litgrid>;
@@ -85,6 +129,10 @@ export interface Litgrid {
   press(down: boolean): void;
   /** The current frame as a data URL. */
   snapshot(type?: string, quality?: number): string;
+  /** Reads and drives the light. */
+  readonly light: LightControl;
+  /** Where the instance thinks the pointer is (a fresh read on every access). */
+  readonly pointer: PointerInfo;
   /** Stops the frame loop and removes every listener the instance added. */
   destroy(): void;
 }
