@@ -1,6 +1,10 @@
 # Litgrid
 
-<img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/hero.gif" width="640" alt="The litgrid effect: a sparkle of light moves over the word Litgrid on a grid of cells, lighting them up and leaving a trail">
+<img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/hero.gif" width="100%" alt="A tour of litgrid on a grid of cells behind the word Litgrid: the light is born wrapped around a button (the anchor), follows the pointer, turns into every light shape and every preset, swells on a click and on a held press, and is caught by three buttons in turn. A caption in the corner names the code behind each step">
+
+Every step in this loop is labeled with the code behind it, in the corner:
+the anchor, `followMouse`, each value of `light` and each of `PRESETS`, `burst()` and
+`press()`, and `magnets`.
 
 A grid of cells that lights up with the light in the scene: dark becomes a dim dot, mid
 becomes a solid cell, and bright becomes a hollow, lit cell, with glow and scanlines on
@@ -150,8 +154,8 @@ when this README and those files differ.
 | `bands([{ y, bg, c0, … }])` | Horizontal bands with their own palette: from `y` (drawing pixels) down to the next band, for sections with different backgrounds. |
 | `resize([w, h])` | A new drawing size, to follow the window. |
 | `redraw()` | Draws again (after drawing on a `<canvas>` used as media, with animate off). |
-| `burst()` | Swells and brightens the light once (a click, say), as `burstSize`, `burstGlow` and `burstSecs` say. |
-| `press(down)` | `true` swells the light the same way and holds it; `false` lets it settle from wherever it was. |
+| `burst()` | Swells and brightens the light once (a click, say), as `burstSize`, `burstGlow` and `burstSecs` say. See [Clicks](#clicks-burst-and-press). |
+| `press(down)` | `true` swells the light the same way and holds it; `false` lets it settle from wherever it was. See [Clicks](#clicks-burst-and-press). |
 | `snapshot(type, quality)` | The current frame as a data URL. |
 | `light` | `get()`, `set()` and `release()`: see [Reading and driving the light](#reading-and-driving-the-light). |
 | `pointer` | Read-only `{ x, y, on }`: where the instance thinks the pointer is, in client pixels, and whether it is on the page. |
@@ -229,7 +233,7 @@ seen. `"custom"` uses `svgCell`.
 
 ## Magnets and the anchor
 
-<img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/magnet.gif" width="640" alt="The pointer passes over three buttons; each one catches the light, which wraps it in a rounded bar, and lets it go">
+<img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/magnet.gif" width="100%" alt="The pointer passes over three buttons; each one catches the light, which wraps it in a rounded bar, and lets it go">
 
 ```js
 const lg = createLitgrid(canvas, {
@@ -271,6 +275,29 @@ the editor's "Copy settings".
   listening. The library never styles or transforms your elements.
 
 The states are drawn in [docs/flows/light-states.md](docs/flows/light-states.md).
+
+## Clicks: burst and press
+
+<img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/click.gif" width="100%" alt="The light under a still pointer: on burst() it swells and brightens once and settles; on press(true) it swells and stays big until press(false) lets it settle. A ring marks the click, and a caption names each call">
+
+The library listens to the pointer for the light, not for clicks: the page says when one
+happens. `burst()` is a quick click, and `press(true)` and `press(false)` are a button held
+down and let go.
+
+```js
+canvas.addEventListener("click", () => lg.burst());
+// or, to hold the swell while the button is down:
+addEventListener("pointerdown", () => lg.press(true));
+addEventListener("pointerup", () => lg.press(false));
+```
+
+- `burstSize` is how much the light grows at the peak (`0.6` is 60% larger), and
+  `burstGlow` how much brighter it gets.
+- `burstSecs` is the length of one burst: it swells in the first quarter and settles in the
+  other three. A press swells in the same first quarter, stays big while held, and settles
+  in the same three quarters from wherever it was when released.
+- A light that a magnet wraps swells and brightens too. With reduced motion, neither call
+  does anything.
 
 ## Reading and driving the light
 
@@ -372,8 +399,10 @@ npm test                # Playwright: fixtures, examples and the editor (build a
 - `docs/flows/light-states.md` draws the light's states, and `docs/media/` holds the README's
   images. `npm run docs:media` builds the package and renders every one of them again in headless
   Chromium, from the exported presets and shapes, with the time stepped by hand and a seeded
-  random, so the same code gives the same files. A test fails when a preset or a shape has no
-  image or no README row.
+  random, so the same code gives the same files. The hero's tour reads its shapes and presets from
+  the same constants, so a new one joins it by itself. The GIFs go through the editor's encoder in
+  its delta mode, which writes only what changed from one frame to the next. A test fails when a
+  preset or a shape has no image or no README row, or when a GIF is over its budget.
 
 `.github/workflows/ci.yml` checks every push and pull request; `pages.yml` publishes the
 editor to GitHub Pages from `main`; `release.yml` publishes the package to npm from a

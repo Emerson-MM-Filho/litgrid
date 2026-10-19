@@ -115,11 +115,16 @@ export function packFrame(px, hist, sums) {
   return f;
 }
 
-// minimal GIF89a encoder: one global palette with the 256 most used colors, LZW per frame, looping
-export async function encodeGif(frames, times, w, h, hist, sums, progress) {
+// minimal GIF89a encoder: one global palette with the 256 most used colors, LZW per frame, looping.
+// delta: each frame after the first keeps only the rectangle that changed, and inside it the pixels that did not
+// change are transparent, so the frame before shows through (255 colors, one index kept for transparency).
+// tolerance: in delta mode, a pixel whose color is within this distance (0 to 255, per channel) of the one on
+// screen counts as unchanged, so slow glows and faint noise don't redraw the whole frame
+export async function encodeGif(frames, times, w, h, hist, sums, progress, { delta = false, tolerance = 0 } = {}) {
   const keys = [];
   for (let k = 0; k < 32768; k++) if (hist[k]) keys.push(k);
-  keys.sort((a, b) => hist[b] - hist[a]); keys.length = Math.min(keys.length, 256);
+  keys.sort((a, b) => hist[b] - hist[a]); keys.length = Math.min(keys.length, delta ? 255 : 256);
+  const clear = keys.length;   // the transparent index, in delta mode
   const pal = new Uint8Array(768);
   keys.forEach((k, i) => { for (let c = 0; c < 3; c++) pal[i * 3 + c] = Math.round(sums[k * 3 + c] / hist[k]); });
   const idx = new Uint8Array(32768);
@@ -141,20 +146,41 @@ export async function encodeGif(frames, times, w, h, hist, sums, progress) {
   for (const b of pal) put(b);
   put(0x21); put(0xff); put(11); str("NETSCAPE2.0"); put(3); put(1); u16(0); put(0);   // loop forever
   const hk = new Int32Array(8192), hv = new Int16Array(8192), blk = new Uint8Array(255);
+  const shown = new Uint8Array(w * h), tol2 = 3 * tolerance * tolerance;
+  const same = (a, b) => a === b || (tol2 > 0 && (pal[a * 3] - pal[b * 3]) ** 2 + (pal[a * 3 + 1] - pal[b * 3 + 1]) ** 2 + (pal[a * 3 + 2] - pal[b * 3 + 2]) ** 2 <= tol2);   // the palette index on screen at each pixel, after the frames so far
   for (let fi = 0; fi < frames.length; fi++) {
     const delay = Math.max(2, Math.round((times[fi + 1] - times[0]) / 10) - Math.round((times[fi] - times[0]) / 10));
-    put(0x21); put(0xf9); put(4); put(0x04); u16(delay); put(0); put(0);
-    put(0x2c); u16(0); u16(0); u16(w); u16(h); put(0);
+    const src = frames[fi];
+    let x0 = 0, y0 = 0, x1 = w - 1, y1 = h - 1, f;
+    if (!delta || fi === 0) {
+      f = new Uint8Array(w * h);
+      for (let i = 0; i < f.length; i++) f[i] = shown[i] = idx[src[i]];
+    } else {
+      x0 = w; y0 = h; x1 = -1; y1 = -1;
+      for (let y = 0, i = 0; y < h; y++) for (let x = 0; x < w; x++, i++) {
+        if (same(idx[src[i]], shown[i])) continue;
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      }
+      if (x1 < 0) x0 = y0 = x1 = y1 = 0;   // nothing changed: one transparent pixel
+      const cw = x1 - x0 + 1;
+      f = new Uint8Array(cw * (y1 - y0 + 1));
+      for (let y = y0, j = 0; y <= y1; y++) for (let x = x0, i = y * w + x0; x <= x1; x++, i++, j++) {
+        const c = idx[src[i]];
+        if (same(c, shown[i])) f[j] = clear; else f[j] = shown[i] = c;
+      }
+    }
+    // disposal 1 (leave the frame in place), and in delta mode the transparent index
+    put(0x21); put(0xf9); put(4); put(delta ? 0x05 : 0x04); u16(delay); put(delta ? clear : 0); put(0);
+    put(0x2c); u16(x0); u16(y0); u16(x1 - x0 + 1); u16(y1 - y0 + 1); put(0);
     put(8);
     // LZW with an open-addressing table, written in sub-blocks of 255 bytes
     let size = 9, next = 258, bits = 0, nb = 0, bn = 0;
     const byte = (b) => { blk[bn++] = b; if (bn === 255) { put(255); for (const x of blk) put(x); bn = 0; } };
     const emit = (code) => { bits |= code << nb; nb += size; while (nb >= 8) { byte(bits & 255); bits >>>= 8; nb -= 8; } };
     hk.fill(-1); emit(256);
-    const f = frames[fi];
-    let prefix = idx[f[0]];
+    let prefix = f[0];
     for (let i = 1; i < f.length; i++) {
-      const c = idx[f[i]], key = (prefix << 8) | c;
+      const c = f[i], key = (prefix << 8) | c;
       let s = Math.imul(key, 0x9e3779b1) >>> 19;
       while (hk[s] !== -1 && hk[s] !== key) s = (s + 1) & 8191;
       if (hk[s] === key) { prefix = hv[s]; continue; }
