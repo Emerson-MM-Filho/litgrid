@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Tied light</title>
+<style>
+  body { margin: 0; background: #000; font: 16px system-ui, sans-serif; }
+  /* in the page: taller than the viewport, scrolls with it, and the test moves it; drawn at half the displayed resolution */
+  canvas { position: absolute; left: 0; top: 0; width: 100%; height: 2400px; z-index: -1; }
+  /* ?canvas=fixed: behind the page, the size of the viewport */
+  canvas.fixed { position: fixed; height: 100vh; }
+  button { position: absolute; left: 800px; top: 500px; font: inherit; padding: 12px 24px; border: 1px solid #c2410c; background: #000; color: #fff; border-radius: 999px; }
+  .spacer { height: 6000px; }
+</style></head>
+<body>
+<canvas id="lit"></canvas>
+<button id="b1">One</button>
+<div class="spacer"></div>
+<script type="module">
+  import { createLitgrid } from "/dist/litgrid.js";
+  const q = new URLSearchParams(location.search), fixed = q.get("canvas") === "fixed";
+  const canvas = document.getElementById("lit");
+  if (fixed) canvas.className = "fixed";
+  // window.__frame, when set, runs after every turn of the frame loop, told whether it drew
+  window.lg = createLitgrid(canvas, {
+    size: fixed ? [innerWidth, innerHeight] : [Math.round(canvas.clientWidth / 2), 1200],
+    pointer: window, magnets: "button",
+    settings: { text: "", followMouse: q.get("follow") !== "0", animate: q.get("animate") !== "0", smoothing: 0.85, drift: 0, pulse: 0, flicker: 0, shapeX: 0.3, shapeY: 0.2, shapeSize: 0.05, stepX: 6, stepY: 6, gapX: 1, gapY: 1, bloom: 0, bloomWide: 0, trail: false, deform: false },
+    onFrame: (now, drew) => window.__frame?.(drew),
+  });
+  window.lg.ready.then(() => { window.__ready = true; });
+</script>
+</body>
+</html>
