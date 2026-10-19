@@ -2,9 +2,9 @@
 // The README shows the images by this path in the repository, so each branch and pull request shows its own
 export const MEDIA_DIR = "docs/media";
 export const ANIMATIONS = { hero: "hero.gif", magnet: "magnet.gif", click: "click.gif" };
-// size budget, in bytes: the hero is a long showcase, so it gets twice the magnet's
+// size budget, in bytes
 const MB = 1024 * 1024;
-export const BUDGET = { hero: 3 * MB, magnet: 1.5 * MB, click: 1.5 * MB, still: 80 * 1024 };
+export const BUDGET = { hero: 1.5 * MB, magnet: 1.5 * MB, click: 1.5 * MB, still: 80 * 1024 };
 /** The budget of one file in docs/media: its animation's, or a still's. */
 export const budgetOf = (file) => BUDGET[Object.keys(ANIMATIONS).find((k) => ANIMATIONS[k] === file)] ?? BUDGET.still;
 

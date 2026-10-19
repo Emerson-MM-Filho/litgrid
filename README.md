@@ -1,10 +1,6 @@
 # Litgrid
 
-<img src="docs/media/hero.gif" width="100%" alt="A tour of litgrid on a grid of cells behind the word Litgrid: the light is born wrapped around a button (the anchor), follows the pointer, turns into every light shape and every preset, swells on a click and on a held press, and is caught by three buttons in turn. A caption in the corner names the code behind each step">
-
-Every step in this loop is labeled with the code behind it, in the corner:
-the anchor, `followMouse`, each value of `light` and each of `PRESETS`, `burst()` and
-`press()`, and `magnets`.
+<img src="docs/media/hero.gif" width="100%" alt="The litgrid effect: a sparkle of light moves in a figure eight over the word Litgrid on a grid of cells, lighting them up and leaving a trail, and each of three buttons below catches it, wraps it in a rounded bar and lets it go">
 
 A grid of cells that lights up with the light in the scene: dark becomes a dim dot, mid
 becomes a solid cell, and bright becomes a hollow, lit cell, with glow and scanlines on
@@ -399,8 +395,7 @@ npm test                # Playwright: fixtures, examples and the editor (build a
 - `docs/flows/light-states.md` draws the light's states, and `docs/media/` holds the README's
   images. `npm run docs:media` builds the package and renders every one of them again in headless
   Chromium, from the exported presets and shapes, with the time stepped by hand and a seeded
-  random, so the same code gives the same files. The hero's tour reads its shapes and presets from
-  the same constants, so a new one joins it by itself. The GIFs go through the editor's encoder in
+  random, so the same code gives the same files. The GIFs go through the editor's encoder in
   its delta mode, which writes only what changed from one frame to the next. A test fails when a
   preset or a shape has no image or no README row, or when a GIF is over its budget.
 
