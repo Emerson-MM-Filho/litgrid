@@ -1,6 +1,6 @@
 # Litgrid
 
-<img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/hero.gif" width="100%" alt="A tour of litgrid on a grid of cells behind the word Litgrid: the light is born wrapped around a button (the anchor), follows the pointer, turns into every light shape and every preset, swells on a click and on a held press, and is caught by three buttons in turn. A caption in the corner names the code behind each step">
+<img src="docs/media/hero.gif" width="100%" alt="A tour of litgrid on a grid of cells behind the word Litgrid: the light is born wrapped around a button (the anchor), follows the pointer, turns into every light shape and every preset, swells on a click and on a held press, and is caught by three buttons in turn. A caption in the corner names the code behind each step">
 
 Every step in this loop is labeled with the code behind it, in the corner:
 the anchor, `followMouse`, each value of `light` and each of `PRESETS`, `burst()` and
@@ -198,11 +198,11 @@ runs through every level of the palette.
 
 | Preview | Name |
 |---|---|
-| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/preset-terracotta-on-night.webp" width="320" alt="The Terracotta on night preset"> | `"Terracotta on night"` |
-| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/preset-terracotta-on-black.webp" width="320" alt="The Terracotta on black preset"> | `"Terracotta on black"` |
-| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/preset-violet-dusk.webp" width="320" alt="The Violet dusk preset"> | `"Violet dusk"` |
-| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/preset-light.webp" width="320" alt="The Light preset"> | `"Light"` |
-| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/preset-ink-on-paper.webp" width="320" alt="The Ink on paper preset"> | `"Ink on paper"` |
+| <img src="docs/media/preset-terracotta-on-night.webp" width="320" alt="The Terracotta on night preset"> | `"Terracotta on night"` |
+| <img src="docs/media/preset-terracotta-on-black.webp" width="320" alt="The Terracotta on black preset"> | `"Terracotta on black"` |
+| <img src="docs/media/preset-violet-dusk.webp" width="320" alt="The Violet dusk preset"> | `"Violet dusk"` |
+| <img src="docs/media/preset-light.webp" width="320" alt="The Light preset"> | `"Light"` |
+| <img src="docs/media/preset-ink-on-paper.webp" width="320" alt="The Ink on paper preset"> | `"Ink on paper"` |
 
 ### Light shapes
 
@@ -211,12 +211,12 @@ The values of `light`, in the `svgMode` the editor picks for each (`LIGHT_SHAPES
 
 | Preview | `light` | `svgMode` |
 |---|---|---|
-| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/light-sparkle.webp" width="320" alt="The Sparkle light shape"> | `"sparkle"` | `"silhouette"` |
-| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/light-sphere.webp" width="320" alt="The Sphere light shape"> | `"sphere"` | `"tones"` |
-| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/light-ring.webp" width="320" alt="The Ring light shape"> | `"ring"` | `"tones"` |
-| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/light-square.webp" width="320" alt="The Square light shape"> | `"square"` | `"silhouette"` |
-| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/light-diamond.webp" width="320" alt="The Diamond light shape"> | `"diamond"` | `"silhouette"` |
-| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/light-hourglass.webp" width="320" alt="The Hourglass light shape"> | `"hourglass"` | `"silhouette"` |
+| <img src="docs/media/light-sparkle.webp" width="320" alt="The Sparkle light shape"> | `"sparkle"` | `"silhouette"` |
+| <img src="docs/media/light-sphere.webp" width="320" alt="The Sphere light shape"> | `"sphere"` | `"tones"` |
+| <img src="docs/media/light-ring.webp" width="320" alt="The Ring light shape"> | `"ring"` | `"tones"` |
+| <img src="docs/media/light-square.webp" width="320" alt="The Square light shape"> | `"square"` | `"silhouette"` |
+| <img src="docs/media/light-diamond.webp" width="320" alt="The Diamond light shape"> | `"diamond"` | `"silhouette"` |
+| <img src="docs/media/light-hourglass.webp" width="320" alt="The Hourglass light shape"> | `"hourglass"` | `"silhouette"` |
 
 ### Cell shapes
 
@@ -225,15 +225,15 @@ seen. `"custom"` uses `svgCell`.
 
 | Preview | `cellShape` |
 |---|---|
-| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/cell-square.webp" width="320" alt="The Square cell shape"> | `"square"` |
-| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/cell-circle.webp" width="320" alt="The Circle cell shape"> | `"circle"` |
-| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/cell-diamond.webp" width="320" alt="The Diamond cell shape"> | `"diamond"` |
-| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/cell-cross.webp" width="320" alt="The Cross cell shape"> | `"cross"` |
-| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/cell-line.webp" width="320" alt="The Horizontal line cell shape"> | `"line"` |
+| <img src="docs/media/cell-square.webp" width="320" alt="The Square cell shape"> | `"square"` |
+| <img src="docs/media/cell-circle.webp" width="320" alt="The Circle cell shape"> | `"circle"` |
+| <img src="docs/media/cell-diamond.webp" width="320" alt="The Diamond cell shape"> | `"diamond"` |
+| <img src="docs/media/cell-cross.webp" width="320" alt="The Cross cell shape"> | `"cross"` |
+| <img src="docs/media/cell-line.webp" width="320" alt="The Horizontal line cell shape"> | `"line"` |
 
 ## Magnets and the anchor
 
-<img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/magnet.gif" width="100%" alt="The pointer passes over three buttons; each one catches the light, which wraps it in a rounded bar, and lets it go">
+<img src="docs/media/magnet.gif" width="100%" alt="The pointer passes over three buttons; each one catches the light, which wraps it in a rounded bar, and lets it go">
 
 ```js
 const lg = createLitgrid(canvas, {
@@ -278,7 +278,7 @@ The states are drawn in [docs/flows/light-states.md](docs/flows/light-states.md)
 
 ## Clicks: burst and press
 
-<img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/click.gif" width="100%" alt="The light under a still pointer: on burst() it swells and brightens once and settles; on press(true) it swells and stays big until press(false) lets it settle. A ring marks the click, and a caption names each call">
+<img src="docs/media/click.gif" width="100%" alt="The light under a still pointer: on burst() it swells and brightens once and settles; on press(true) it swells and stays big until press(false) lets it settle. A ring marks the click, and a caption names each call">
 
 The library listens to the pointer for the light, not for clicks: the page says when one
 happens. `burst()` is a quick click, and `press(true)` and `press(false)` are a button held

@@ -1,7 +1,6 @@
-// where each README image lives: shared by the generator (docs-media.mjs) and the coverage test
+// where each README image lives: shared by the generator (docs-media.mjs) and the coverage test.
+// The README shows the images by this path in the repository, so each branch and pull request shows its own
 export const MEDIA_DIR = "docs/media";
-// absolute URLs, so the images render on npm as well as on GitHub
-export const MEDIA_URL = "https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media";
 export const ANIMATIONS = { hero: "hero.gif", magnet: "magnet.gif", click: "click.gif" };
 // size budget, in bytes: the hero is a long showcase, so it gets twice the magnet's
 const MB = 1024 * 1024;
