@@ -75,3 +75,14 @@ test("importing the ESM build in Node does not throw", () => {
   const out = execFileSync(process.execPath, ["-e", "import('./dist/litgrid.js').then(m => console.log(typeof m.createLitgrid))"], { encoding: "utf8" });
   expect(out.trim()).toBe("function");
 });
+
+test("the tarball holds only the builds, the types, the README, the licence and the changelog", () => {
+  const [pack] = JSON.parse(execFileSync("npm", ["pack", "--dry-run", "--json", "--ignore-scripts"], { encoding: "utf8" }));
+  expect(pack.files.map((f: { path: string }) => f.path).sort()).toEqual([
+    "CHANGELOG.md", "LICENSE", "README.md",
+    "dist/config.d.ts", "dist/engine.d.ts", "dist/index.d.ts", "dist/litgrid.iife.js", "dist/litgrid.js", "dist/types.d.ts",
+    "package.json",
+  ]);
+  const pkg = JSON.parse(execFileSync("node", ["-p", "JSON.stringify(require('./package.json'))"], { encoding: "utf8" }));
+  expect(pkg.dependencies ?? {}).toEqual({});
+});

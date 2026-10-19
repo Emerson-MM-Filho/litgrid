@@ -1,0 +1,8 @@
+<canvas id="lit" style="width: 100%; aspect-ratio: 16 / 9"></canvas>
+<script type="module">
+  import { createLitgrid } from "https://cdn.jsdelivr.net/npm/@ampulla/litgrid@0.1/dist/litgrid.js";
+
+  const lg = createLitgrid(document.getElementById("lit"), {
+    settings: { text: "Hello", followMouse: true },
+  });
+</script>

@@ -5,3 +5,4 @@ dist-app/
 test-results/
 playwright-report/
 *.tgz
+examples/*/dist/

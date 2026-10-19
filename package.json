@@ -1,7 +1,22 @@
 {
   "name": "@ampulla/litgrid",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "A canvas grid of cells that lights up with the scene: the CRT/LED panel look, framework-agnostic.",
+  "keywords": [
+    "canvas",
+    "grid",
+    "crt",
+    "led",
+    "pixel",
+    "glow",
+    "light",
+    "cursor",
+    "magnet",
+    "hero",
+    "background",
+    "effect",
+    "framework-agnostic"
+  ],
   "license": "MIT",
   "type": "module",
   "main": "./dist/litgrid.js",
@@ -20,7 +35,8 @@
   "files": [
     "dist/litgrid.js",
     "dist/litgrid.iife.js",
-    "dist/*.d.ts"
+    "dist/*.d.ts",
+    "CHANGELOG.md"
   ],
   "repository": {
     "type": "git",
@@ -37,12 +53,25 @@
     "dev": "vite --config vite.app.config.ts",
     "build": "vite build && tsc -p tsconfig.build.json",
     "build:app": "vite build --config vite.app.config.ts",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p fixtures/types/tsconfig.json",
-    "test": "playwright test"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p fixtures/types/tsconfig.json && tsc -p examples/tsconfig.json",
+    "test": "playwright test",
+    "build:examples": "vite build -c examples/react/vite.config.ts && vite build -c examples/vue/vite.config.ts && vite build -c examples/ssr/vite.config.ts",
+    "check:readme": "node scripts/check-readme.mjs",
+    "prepack": "npm run build"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "typescript": "^7.0.2",
-    "vite": "^8.3.4"
+    "vite": "^8.3.4",
+    "vue": "^3.5.44"
   }
 }

@@ -1,126 +1,176 @@
 # Litgrid
 
-A grid of cells that lights up with the light in the scene: dark becomes a dim
-dot, mid becomes a solid cell, and bright becomes a hollow, lit cell, with glow
-and scanlines on top. It's the CRT/LED panel look, rebuilt in the browser with
-the 2D canvas.
+A grid of cells that lights up with the light in the scene: dark becomes a dim dot, mid
+becomes a solid cell, and bright becomes a hollow, lit cell, with glow and scanlines on
+top. It's the CRT/LED panel look, rebuilt in the browser with the 2D canvas, as a
+framework-agnostic package with no dependencies.
 
-## Running it
+Tune it in the editor at https://ampulla-tech.github.io/litgrid/, press "Copy settings",
+and pass that JSON to the package.
 
-The editor is live at https://ampulla-tech.github.io/litgrid/ (the webcam works there).
-
-The repository is the `@ampulla/litgrid` package plus the editor that uses it:
+## Install
 
 ```sh
-npm install
-npm run dev        # the editor, with the library from source
-npm run build      # the package: dist/litgrid.js (ESM), dist/litgrid.iife.js and the types
-npm run build:app  # the editor, into dist-app/
-npm run typecheck
-npm test           # the browser fixtures (build both first)
+npm i @ampulla/litgrid
 ```
 
-## Files
+Or straight from a CDN: `https://unpkg.com/@ampulla/litgrid@0.1` is the script-tag build,
+which exposes `window.Litgrid`, and
+`https://cdn.jsdelivr.net/npm/@ampulla/litgrid@0.1/dist/litgrid.js` is the ES module.
 
-- `src/`: the library, in TypeScript.
-  - `index.ts`: the public entry, `createLitgrid`.
-  - `engine.ts`: the canvas pipeline (scene, grid, light, trail, deformation), the frame
-    loop and the pointer, all inside one instance.
-  - `config.ts`: presets, formats, the built-in SVG shapes and the default settings.
-  - `types.ts`: the public types.
-- `app/`: the editor, a Vite app. `src/main.js` holds the buttons, media and webcam,
-  `src/panel.js` builds the controls from `src/schema.js`, `src/export.js` does PNG, video
-  and the GIF encoder, and `src/webmcp.js` the tools for AI agents. `embed.html` shows the
-  renderer on a page of its own, without the editor.
-- `fixtures/` and `tests/`: pages that load the built package, and the Playwright suite
-  that drives them and the built editor.
+Each canvas gets its own instance, `createLitgrid(canvas, options)`, released with
+`destroy()`. Importing the package never touches `window`, `document` or `matchMedia`, so
+it is safe to import on a server.
 
-`.github/workflows/ci.yml` typechecks, builds and runs the fixtures on every push and pull
-request. `.github/workflows/pages.yml` builds the editor and publishes it to GitHub Pages on
-every push to `main`.
+## Usage
 
-## What you can change
+### Plain HTML, script tag
 
-- **Scene:** output format (16:9, 9:16 or 1:1), text, ambient light.
-- **Shape:** the light shape is always an SVG. There are built-in ones (Sparkle,
-  Sphere, Ring, Square, Diamond, Hourglass) and any SVG of your own, pasted or
-  loaded from a file. It can follow the mouse, leave a fading trail and stretch
-  with the speed of movement.
-- **Cell:** each cell is drawn from an SVG too (square, circle, diamond, cross,
-  line or your own), plus the grid size, the gaps and the thresholds between dim,
-  solid and hollow.
-- **Color:** dark and light presets, or a hand-picked palette. It can also take
-  the colors from the input media.
-- **Glow and Motion:** bloom, scanlines, pulse, drift and flicker.
-
-An image, a video or the webcam can replace the scene as input. "Copy settings"
-copies every setting as JSON.
-
-**Export** saves the stage as a PNG of the current frame, a video (MP4 where the
-browser can record it, WebM otherwise) or a looping GIF. Video and GIF are
-recorded in real time, for the length you pick; the GIF is scaled down to the
-width you pick.
-
-Settings are kept in the browser. "Reset" goes back to the defaults.
-
-## Using the package
-
-Each canvas gets its own instance; importing the package never touches the browser.
-
-```js
-import { createLitgrid } from "@ampulla/litgrid";
-
-const lg = createLitgrid(document.getElementById("lit"), {
-  settings: { text: "", followMouse: true, bg: "#0c0a09", c4: "#ffffff" },
-  media: "scene.png",
-});
-// later
-lg.destroy();
-```
-
-Without a bundler, the IIFE build exposes `window.Litgrid`:
-
+<!-- example: examples/html/script.html -->
 ```html
-<canvas id="lit"></canvas>
-<script src="dist/litgrid.iife.js"></script>
+<canvas id="lit" style="width: 100%; aspect-ratio: 16 / 9"></canvas>
+<script src="https://unpkg.com/@ampulla/litgrid@0.1"></script>
 <script>
-  const lg = Litgrid.createLitgrid(document.getElementById("lit"), { settings: { followMouse: true } });
+  const lg = Litgrid.createLitgrid(document.getElementById("lit"), {
+    settings: { text: "Hello", followMouse: true },
+    pointer: window,
+    magnets: "a, button",
+  });
 </script>
 ```
 
-- `settings` takes the JSON from "Copy settings", whole or in part, over the defaults.
-  Every color is a setting, so the theme is whatever you pass. Nothing is read from or
-  saved to the browser.
-- `media` is an image or video URL (another origin needs CORS), or an `<img>`, `<video>`
-  or `<canvas>`. A `<canvas>` can change size later, as when the page redraws it to fit:
-  its size is read on every frame.
-- `size` is the drawing size in pixels; by default it is the canvas' displayed size
-  times the pixel ratio.
+### Plain HTML, module
 
-Behind a page's content, the canvas can stay fixed and full screen: pass `pointer: window`
-so the light follows the mouse over the whole page, a `<canvas>` you draw the scene on as
-`media` (call `lg.redraw()` after drawing it when animate is off), and `lg.bands([{ y, bg,
-c0, … }])` so each horizontal band of the screen, from `y` down, gets its own palette, for
-sections with different backgrounds. `lg.resize([w, h])` follows the window.
+<!-- example: examples/html/module.html -->
+```html
+<canvas id="lit" style="width: 100%; aspect-ratio: 16 / 9"></canvas>
+<script type="module">
+  import { createLitgrid } from "https://cdn.jsdelivr.net/npm/@ampulla/litgrid@0.1/dist/litgrid.js";
 
-`lg.burst()` swells and brightens the shape once, for a click on a button: `burstSize`,
-`burstGlow` and `burstSecs` set how much it grows, how much brighter it gets and for how
-long. `lg.press(true)` swells it the same way and holds it there, for as long as a mouse
-button stays down; `lg.press(false)` lets it settle from wherever it was (in the editor,
-holding the stage plays it). `stretchX` and `stretchY` stretch the
-shape without stretching its corners, so a round light becomes a rounded bar with the same
-falloff. The trail, the deformation and the burst follow the stretched shape.
+  const lg = createLitgrid(document.getElementById("lit"), {
+    settings: { text: "Hello", followMouse: true },
+  });
+</script>
+```
 
-On a phone the page keeps scrolling: a vertical swipe scrolls, and a tap or a sideways
-drag moves the light. With `followMouse` on, the light waits at `shapeX`/`shapeY` (without
-drifting) until the pointer first comes, and when the pointer leaves the window it rests
-where the pointer left.
-Nothing is drawn while the canvas is off screen, and with reduced motion the canvas
-shows a still frame. `lg.ready` resolves after the first full frame, `lg.update()`
-changes settings, `lg.snapshot()` returns the frame as a data URL, and `lg.destroy()`
-stops the frame loop and removes every listener the instance added.
+### React
 
-### Magnets and the anchor
+Create the instance in an effect and destroy it in the cleanup:
+
+<!-- example: examples/react/Litgrid.tsx -->
+```tsx
+import { useEffect, useRef } from "react";
+import { createLitgrid, type Settings } from "@ampulla/litgrid";
+
+export function Litgrid({ settings }: { settings?: Partial<Settings> }) {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const lg = createLitgrid(canvas.current!, { settings });
+    return () => lg.destroy();
+  }, []);
+  return <canvas ref={canvas} style={{ width: "100%", aspectRatio: "16 / 9" }} />;
+}
+```
+
+### Vue
+
+<!-- example: examples/vue/Litgrid.vue -->
+```vue
+<script setup lang="ts">
+import { onBeforeUnmount, onMounted, ref } from "vue";
+import { createLitgrid, type Litgrid, type Settings } from "@ampulla/litgrid";
+
+const props = defineProps<{ settings?: Partial<Settings> }>();
+const canvas = ref<HTMLCanvasElement>();
+let lg: Litgrid | undefined;
+onMounted(() => { lg = createLitgrid(canvas.value!, { settings: props.settings }); });
+onBeforeUnmount(() => lg?.destroy());
+</script>
+
+<template>
+  <canvas ref="canvas" style="width: 100%; aspect-ratio: 16 / 9" />
+</template>
+```
+
+### Server rendering (Next, Nuxt, Astro, SvelteKit)
+
+Import the package anywhere, and create the instance only in the browser: in an effect
+(React, Next), in `onMounted` (Vue, Nuxt), or in a client script (Astro, SvelteKit's
+`onMount`). In Next's app router the component is a client component:
+
+<!-- example: examples/ssr/Litgrid.tsx -->
+```tsx
+"use client";
+import { useEffect, useRef } from "react";
+import { createLitgrid, type Settings } from "@ampulla/litgrid";
+
+// rendered on the server as a plain <canvas>; the instance only exists in the browser
+export function Litgrid({ settings }: { settings?: Partial<Settings> }) {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const lg = createLitgrid(canvas.current!, { settings });
+    return () => lg.destroy();
+  }, []);
+  return <canvas ref={canvas} style={{ width: "100%", aspectRatio: "16 / 9" }} />;
+}
+```
+
+These examples are built and run in CI from the files under `examples/`, and a check fails
+when this README and those files differ.
+
+## Options
+
+`createLitgrid(canvas, options)` takes:
+
+| Option | What it is |
+|---|---|
+| `settings` | The JSON from the editor's "Copy settings", whole or in part, over the defaults. Nothing is read from or saved to the browser, so the colors and everything else come only from here. |
+| `media` | What the grid lights up from: an image or video URL (another origin needs CORS), or an `<img>`, `<video>` or `<canvas>`. A `<canvas>` is read again on every frame, and its size too. |
+| `size` | `[width, height]` of the drawing in pixels. By default, the canvas' displayed size times the pixel ratio. |
+| `pointer` | Where the light listens to the pointer: the canvas by default. A canvas behind the page's content passes `window`. |
+| `magnets`, `magnetMode`, `magnetReach`, `magnetBorder`, `magnetTime`, `anchor` | See [Magnets and the anchor](#magnets-and-the-anchor). They can also go inside `settings`. |
+
+## Methods
+
+| Member | What it does |
+|---|---|
+| `ready` | A promise that resolves (with the instance) after the first frame with the media and the SVGs loaded, so you can reveal the canvas without a flash. |
+| `update(settings)` | Changes settings, whole or in part. |
+| `bands([{ y, bg, c0, … }])` | Horizontal bands with their own palette: from `y` (drawing pixels) down to the next band, for sections with different backgrounds. |
+| `resize([w, h])` | A new drawing size, to follow the window. |
+| `redraw()` | Draws again (after drawing on a `<canvas>` used as media, with animate off). |
+| `burst()` | Swells and brightens the light once (a click, say), as `burstSize`, `burstGlow` and `burstSecs` say. |
+| `press(down)` | `true` swells the light the same way and holds it; `false` lets it settle from wherever it was. |
+| `snapshot(type, quality)` | The current frame as a data URL. |
+| `light` | `get()`, `set()` and `release()`: see [Reading and driving the light](#reading-and-driving-the-light). |
+| `pointer` | Read-only `{ x, y, on }`: where the instance thinks the pointer is, in client pixels, and whether it is on the page. |
+| `on("magnet", fn)` | Calls `fn` with the element (or `null`) whenever the element holding the light changes. Returns a function that stops listening. |
+| `destroy()` | Stops the frame loop and removes every listener the instance added. |
+
+Nothing is drawn while the canvas is off screen. With reduced motion the canvas shows one
+still frame and the light does not move. On a phone the page keeps scrolling: a vertical
+swipe scrolls, and a tap or a sideways drag moves the light.
+
+## Settings
+
+Every setting has a default (exported as `DEFAULTS`), and its type documents it
+(`Settings`). Fractions of the drawing are measured against its short side, so they read
+the same in every format.
+
+| Group | Settings |
+|---|---|
+| Scene | `text`, `textSize`, `textX`, `textY`, `volume` (darkens the text toward the bottom), `ambient`, `overlay` (text and light on top of media), `format` (the editor's sizes, when no `size` is given), `mirror` (webcam) |
+| Light | `light` (`sparkle`, `sphere`, `ring`, `square`, `diamond`, `hourglass`, `custom` or `none`), `svgLight` (the SVG for `custom`), `svgMode` (`silhouette` or `tones`), `shapeX`, `shapeY`, `shapeSize`, `spin`, `stretchX`, `stretchY` (stretch the middle and keep the corners, so a round light becomes a rounded bar) |
+| Following | `followMouse`, `smoothing` (the follow delay) |
+| Trail and deformation | `trail`, `trailDur`, `trailStrength`, `trailTaper`, `trailSpacing`, `deform`, `deformAmount`, `deformMax` |
+| Burst | `burstSize`, `burstGlow`, `burstSecs` |
+| Cell | `cellShape` (`square`, `circle`, `diamond`, `cross`, `line` or `custom`), `svgCell`, `stepX`, `stepY`, `gapX`, `gapY`, `mode` (`fixed`, `variable` or `solid`), `offBelow`, `hollowAbove`, `outline`, `dot`, `core` |
+| Color | `colorSource` (`palette` or `media`), `bg`, `c0` to `c4` (dark to lit), `contrast`; `PRESETS` has the editor's palettes |
+| Glow | `bloom`, `bloomWide`, `scanlines` |
+| Motion | `animate`, `fps`, `fpsUnlimited`, `pulse`, `drift`, `flicker`, `flickerEvery` |
+| Magnets | `magnets`, `magnetMode`, `magnetReach`, `magnetBorder`, `magnetTime`, `anchor`, `svgMagnet` (the round shape a light becomes while it wraps a magnet; empty is the built-in sphere) |
+
+## Magnets and the anchor
 
 ```js
 const lg = createLitgrid(canvas, {
@@ -163,7 +213,7 @@ the editor's "Copy settings".
 
 The states are drawn in [docs/flows/light-states.md](docs/flows/light-states.md).
 
-### Reading and driving the light
+## Reading and driving the light
 
 `lg.light.get()` returns `{ state, x, y, element, size, stretchX, stretchY }`: where the light is, in client (viewport)
 pixels, mapped through the canvas' rectangle on screen, so a canvas larger than the
@@ -181,16 +231,49 @@ viewport or offset by scrolling reports where the light really is; `size`, `stre
 
 `lg.light.set({ x, y, stretchX, stretchY, size })` takes control: `x` and `y` in client
 pixels, `stretchX`, `stretchY` and `size` in the units of the `stretchX`, `stretchY` and
-`shapeSize` settings, and any of them can be left out. The light stops following and goes
-where it is told, magnets included, until `lg.light.release()`, which hands control back from where the light
-is, with no jump. `lg.pointer` is a read-only `{ x, y, on }`: where the instance thinks the
+`shapeSize` settings, and any of them can be left out. The light stops following, magnets
+stop catching it, and it goes where it is told until `lg.light.release()`, which hands
+control back from where the light is, with no jump. `lg.pointer` is a read-only `{ x, y, on }`: where the instance thinks the
 pointer is, in client pixels, and whether it is on the page.
 
-**Porting from `Litgrid.mount`:** call `createLitgrid(canvas, options)` (or
-`Litgrid.createLitgrid` from the IIFE) with the same options, and `destroy()` instead of
-`stop()`. Several canvases on one page now work.
+## Porting from `Litgrid.mount`
 
-## For AI agents (WebMCP)
+The three plain scripts (`config.js`, `render.js`, `embed.js`) are now one package. Load
+the IIFE build instead of the three files and call `Litgrid.createLitgrid(canvas, options)`
+instead of `Litgrid.mount(canvas, options)`: the options are the same. `stop()` is now
+`destroy()`. Several canvases on one page work, and reading the renderer's globals (`S`,
+`mouse`, `W`, `H`) is replaced by `light.get()`, `light.set()`, `pointer`, magnets and the
+anchor. With `followMouse` on, the light no longer drifts while the pointer is away: it
+waits at its place before the pointer comes, and rests where the pointer left.
+
+## The editor
+
+- **Scene:** output format (16:9, 9:16 or 1:1), text, ambient light.
+- **Shape:** the light shape is always an SVG. There are built-in ones (Sparkle,
+  Sphere, Ring, Square, Diamond, Hourglass) and any SVG of your own, pasted or
+  loaded from a file. It can follow the mouse, leave a fading trail and stretch
+  with the speed of movement.
+- **Cell:** each cell is drawn from an SVG too (square, circle, diamond, cross,
+  line or your own), plus the grid size, the gaps and the thresholds between dim,
+  solid and hollow.
+- **Color:** dark and light presets, or a hand-picked palette. It can also take
+  the colors from the input media.
+- **Glow and Motion:** bloom, scanlines, pulse, drift and flicker.
+- **Magnets:** the selector for magnets and the anchor, the mode, reach, border and
+  travel time, with demo buttons on the stage to try them on. Under the stage, a read-out
+  shows `light.get()`: the state, the position and the element holding the light.
+
+An image, a video or the webcam can replace the scene as input. "Copy settings"
+copies every setting as JSON.
+
+**Export** saves the stage as a PNG of the current frame, a video (MP4 where the
+browser can record it, WebM otherwise) or a looping GIF. Video and GIF are
+recorded in real time, for the length you pick; the GIF is scaled down to the
+width you pick.
+
+Settings are kept in the browser. "Reset" goes back to the defaults.
+
+### For AI agents (WebMCP)
 
 The page registers [WebMCP](https://github.com/webmachinelearning/webmcp) tools,
 so an AI agent running in the browser can set it up for you:
@@ -206,6 +289,31 @@ so an AI agent running in the browser can set it up for you:
 
 In browsers without WebMCP nothing changes. To try it in Chrome, turn on
 `chrome://flags/#enable-webmcp-testing`.
+
+## Development
+
+```sh
+npm install
+npm run dev             # the editor, with the library from source
+npm run build           # the package: dist/litgrid.js (ESM), dist/litgrid.iife.js and the types
+npm run build:app       # the editor, into dist-app/
+npm run build:examples  # the README's examples
+npm run typecheck
+npm run check:readme    # the README's examples match the files
+npm test                # Playwright: fixtures, examples and the editor (build all first)
+```
+
+- `src/` is the library: `index.ts` (the public entry), `engine.ts` (the canvas pipeline,
+  the frame loop, the pointer, magnets and the light, all inside one instance),
+  `config.ts` (presets, formats, built-in shapes and defaults) and `types.ts`.
+- `app/` is the editor, a Vite app that imports the library from source.
+- `examples/`, `fixtures/` and `tests/` are the README's examples, the pages the tests drive,
+  and the Playwright suite.
+- `docs/flows/light-states.md` draws the light's states.
+
+`.github/workflows/ci.yml` checks every push and pull request; `pages.yml` publishes the
+editor to GitHub Pages from `main`; `release.yml` publishes the package to npm from a
+`v*` tag (see [CHANGELOG.md](CHANGELOG.md)).
 
 ## License
 
