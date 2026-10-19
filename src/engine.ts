@@ -132,6 +132,40 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
   let barred = false;
   const ROUND = "sphere";
   let springAt = 0;
+  // ---------- what the light is tied to on screen ----------
+  // the carried-over positions live in drawing pixels, so a canvas that moves on screen (a page scrolling it, or
+  // repositioning a canvas taller than the viewport) would drag them along. tie: what the light followed last
+  // frame: "screen" (the pointer, or where it left), the element holding it, or null (the canvas: drift, set,
+  // glide, waiting). tiedAt: that element's centre then, in client pixels; seen: the canvas then, on screen
+  let tie: Element | "screen" | null = null, tiedAt: [number, number] = [0, 0];
+  let seen: { left: number; top: number; width: number; height: number; W: number; H: number } | null = null;
+  // moves everything the light carries over from frame to frame by (dx, dy) drawing pixels
+  function shift(dx: number, dy: number) {
+    mouse.x += dx; mouse.y += dy; lit.x += dx; lit.y += dy;
+    if (centre) { centre.x += dx; centre.y += dy; }
+    if (glide) { glide.x += dx; glide.y += dy; }
+    for (const p of trail) { p.x += dx; p.y += dy; }
+    if (motion.px !== null) { motion.px += dx; motion.py! += dy; }
+  }
+  // keeps the light with its tie: back by what the canvas moved on screen, forward by what the tie moved.
+  // not on the first frame, nor across a resize, where the old positions mean nothing on the new canvas
+  function retie(b: DOMRect, kx: number, ky: number) {
+    if (seen && seen.width === b.width && seen.height === b.height && seen.W === W && seen.H === H) {
+      const cx = b.left - seen.left, cy = b.top - seen.top;
+      let tx = 0, ty = 0;   // the screen does not move
+      if (!tie) { tx = cx; ty = cy; }
+      else if (tie !== "screen") {
+        const r = tie.getBoundingClientRect();
+        // an element gone or emptied since: the light stays on the canvas this once
+        if (tie.isConnected && r.width) { tx = r.left + r.width / 2 - tiedAt[0]; ty = r.top + r.height / 2 - tiedAt[1]; } else { tx = cx; ty = cy; }
+      }
+      if (tx !== cx || ty !== cy) shift((tx - cx) * kx, (ty - cy) * ky);
+    }
+    seen = { left: b.left, top: b.top, width: b.width, height: b.height, W, H };
+  }
+  // the canvas moved on screen since the last frame, under a light tied to the screen: a paused loop has to draw.
+  // it reads the rectangle every turn, but only while the pointer has been seen with following on
+  const strayed = () => { if (tie !== "screen" || !seen) return false; const b = rect(); return b.left !== seen.left || b.top !== seen.top; };
 
   function lightState(): LightState {
     if (manual) return "manual";
@@ -145,6 +179,7 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
   function stepLight() {
     const now = performance.now(), dt = Math.min(0.1, (now - springAt) / 1000); springAt = now;
     const m = Math.min(W, H), b = rect(), kx = W / b.width, ky = H / b.height;
+    retie(b, kx, ky);
     // who holds the light: a magnet still usable and on screen, or the anchor until the pointer is first seen
     if (magnet && !(S.magnets && usable(magnet) && onScreen(magnet))) { magnet = null; byKeyboard = false; }
     const anchor = anchorEl(), anchoring = !mouse.seen && !!anchor && usable(anchor) && onScreen(anchor);
@@ -166,7 +201,8 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
       size = manual.size ?? size; sx = manual.sx ?? sx; sy = manual.sy ?? sy;
     } else if (holder) {
       const r = holder.getBoundingClientRect(), w = 6 / S.magnetTime;
-      const [tx, ty] = toDrawing(r.left + r.width / 2, r.top + r.height / 2, b);
+      tiedAt = [r.left + r.width / 2, r.top + r.height / 2];
+      const [tx, ty] = toDrawing(tiedAt[0], tiedAt[1], b);
       centre!.x = spring(centre!.x, tx, "x", w, dt); centre!.y = spring(centre!.y, ty, "y", w, dt);
       x = centre!.x; y = centre!.y;
     } else if (state === "following" || (state === "still" && S.followMouse && mouse.on)) {
@@ -211,6 +247,8 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
       if (e >= 1) glide = null;
     }
     Object.assign(lit, { x, y, size, sx, sy });
+    // held: the element; following, or resting where the pointer left: the screen; anything else: the canvas
+    tie = holder || (!manual && S.followMouse && mouse.seen ? "screen" : null);
   }
   // the light is moving on its own (a spring or a glide), so a paused loop still has to draw
   const moving = () => !!holder || form.on || !!glide;
@@ -641,7 +679,7 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
         if (frame % S.flickerEvery === 0) reroll();
         render(); drew = true; dirty = false;
       }
-    } else if (dirty || bursting() || moving() || trail.length > 1 || (dfm && dfm.s > 1.01) || (media && media.tagName === "VIDEO" && !(media as HTMLVideoElement).paused)) { render(); drew = true; dirty = false; }
+    } else if (dirty || bursting() || moving() || strayed() || trail.length > 1 || (dfm && dfm.s > 1.01) || (media && media.tagName === "VIDEO" && !(media as HTMLVideoElement).paused)) { render(); drew = true; dirty = false; }
     if (drew && !done && loaded()) { done = true; resolveReady(); }
     opts.onFrame?.(now, drew);
     raf = requestAnimationFrame(loop);

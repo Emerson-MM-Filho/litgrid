@@ -144,3 +144,32 @@ test("the anchor off screen: the light waits at its position", async ({ page }) 
   await page.evaluate(() => window.scrollTo(0, 0));
   await settled(page, "anchored", "cta");
 });
+
+// a magnet holds the light while the page scrolls under a still pointer: the light moves with the button,
+// whether the canvas scrolls with the page (and the page also moves it) or stays fixed behind it
+for (const canvas of ["page", "fixed"]) {
+  test(`held: the light stays on the button while the page scrolls (${canvas} canvas)`, async ({ page }) => {
+    await page.goto(`/fixtures/tied.html?canvas=${canvas}`);
+    await page.waitForFunction(() => (window as any).__ready);
+    const b1 = await box(page, "b1");
+    await page.mouse.move(b1.x + b1.width / 2, b1.y + b1.height / 2, { steps: 6 });
+    await settled(page, "held", "b1");
+    await page.waitForTimeout(1000);   // the catch settles
+    // 3 px a frame down and back, twice (within the magnet's reach); a canvas in the page also jumps 190 px every 10 frames
+    const act = `scrollBy(0, (i % 30) < 15 ? 3 : -3);${canvas === "page" ? ` if (i % 10 === 9) document.getElementById("lit").style.top = ((i / 10 | 0) % 2 ? 0 : 190) + "px";` : ""}`;
+    const f: any[] = await page.evaluate((act) => new Promise((resolve) => {
+      const a = new Function("i", act), out: any[] = [];
+      let i = 0;
+      (window as any).__frame = (drew: boolean) => {
+        if (!drew) return;
+        const l = (window as any).lg.light.get(), r = document.getElementById("b1")!.getBoundingClientRect();
+        out.push({ state: l.state, element: l.element?.id ?? null, dx: l.x - (r.left + r.width / 2), dy: l.y - (r.top + r.height / 2), scrollY });
+        if (i < 60) a(i++); else { (window as any).__frame = null; resolve(out); }
+      };
+    }), act);
+    const worst = Math.max(...f.map((s) => Math.hypot(s.dx, s.dy)));
+    console.log(`held on a ${canvas} canvas while the page scrolled ${Math.max(...f.map((s) => s.scrollY))} px: light at most ${worst.toFixed(2)} px from the button's centre`);
+    for (const s of f) expect(`${s.state}:${s.element}`).toBe("held:b1");
+    expect(worst).toBeLessThan(2);
+  });
+}
