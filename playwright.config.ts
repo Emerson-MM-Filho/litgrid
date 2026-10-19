@@ -5,7 +5,8 @@ export default defineConfig({
   testDir: "tests",
   timeout: 60_000,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
+  // on GitHub Actions each failure is also an annotation in the run's summary
+  reporter: process.env.CI ? [["list"], ["html", { open: "never" }], ...(process.env.GITHUB_ACTIONS ? [["github"] as ["github"]] : [])] : "list",
   use: {
     baseURL: "http://localhost:4173",
     // locally, PW_CHANNEL=chrome uses the installed Chrome instead of a downloaded browser

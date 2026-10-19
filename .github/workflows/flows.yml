@@ -23,5 +23,9 @@ jobs:
         run: |
           mkdir -p /tmp/mermaid
           for f in $(find docs -name '*.md'); do
-            npx mmdc -i "$f" -o "/tmp/mermaid/$(basename "$f")" -p .github/puppeteer.json
+            if ! npx mmdc -i "$f" -o "/tmp/mermaid/$(basename "$f")" -p .github/puppeteer.json; then
+              echo "::error file=$f,title=Mermaid diagram does not render::a Mermaid block in $f failed to render (the parser error is above). Fix the block, or paste it into https://mermaid.live to find the line."
+              exit 1
+            fi
           done
+          echo "Every Mermaid block under docs/ renders." >> "$GITHUB_STEP_SUMMARY"
