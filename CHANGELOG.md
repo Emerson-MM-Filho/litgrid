@@ -2,7 +2,8 @@
 
 All notable changes to this package are recorded here. The package follows
 [semantic versioning](https://semver.org/); while it is `0.x`, a minor version may change
-the API.
+the API. A version is released by merging the pull request that sets it in `package.json`
+and adds its entry here: CI publishes it to npm, tags the commit and opens its GitHub release.
 
 ## 0.2.0
 
