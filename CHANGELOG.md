@@ -5,6 +5,27 @@ All notable changes to this package are recorded here. The package follows
 the API. A version is released by merging the pull request that sets it in `package.json`
 and adds its entry here: CI publishes it to npm, tags the commit and opens its GitHub release.
 
+## 0.2.1
+
+Fixes a regression of 0.2.0: while the page scrolled under a still pointer, the light stayed
+glued under the pointer and its trail disappeared, where 0.1.x let the light trail behind and
+streak across the page.
+
+- A following light, or one resting where the pointer left, is now tied to the page instead
+  of the screen. A scroll under a still pointer carries it along with the page and it eases
+  back to the pointer with the usual smoothing, leaving its trail. A page repositioning the
+  canvas (one taller than the viewport, moved while it scrolls) still moves nothing on
+  screen, which is what 0.2.0 fixed.
+- On a canvas fixed behind the page, a scroll now carries that light along with the page
+  too, so it trails behind there as well; in 0.1.x and 0.2.0 it stayed under the pointer.
+- The trail stays on the page whatever the light follows: it is where the light passed. On a
+  fixed canvas, the trail of a drifting light, or of one held by a fixed element, now
+  streaks with the scroll.
+- A light held by a magnet or the anchor still moves with that element, and one that drifts,
+  waits, glides back or is driven by `light.set()` still moves with the canvas.
+- With `animate: false`, the canvas is drawn again when it moved against the page, under a
+  light tied to the page; a scroll alone leaves that light where it was on the page.
+
 ## 0.2.0
 
 A change of behaviour, so a minor version: while the package is `0.x`, a minor version is

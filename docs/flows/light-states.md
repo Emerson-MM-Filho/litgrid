@@ -17,11 +17,13 @@ proposal was drawn before the build; this is what the code does.
   motion nothing moves the light, `light.set` included.
 - With `followMouse` off, the light sits at `shapeX`/`shapeY` with its drift and reports
   **Resting**; magnets and the anchor still catch it.
-- When the canvas moves on screen (the page scrolls it, or repositions it), each state keeps
-  the light tied to what it follows: **Following**, and **Resting** where the pointer left,
-  to the screen, so it stays under a still pointer; **Held** and **Anchored** to the element,
-  which it moves with; **Manual**, **Waiting**, drifting **Resting** with `followMouse` off,
-  and the glide back after a release, to the canvas, which carries it along.
+- When the page scrolls or moves the canvas, each state keeps the light tied to what it
+  follows: **Following**, and **Resting** where the pointer left, to the page, so a scroll
+  under a still pointer leaves the light behind and it eases back, and a page repositioning
+  the canvas moves nothing on screen; **Held** and **Anchored** to the element, which it moves
+  with; **Manual**, **Waiting**, drifting **Resting** with `followMouse` off, and the glide
+  back after a release, to the canvas, which carries it along. The trail stays on the page in
+  every state: it is where the light passed.
 
 ```mermaid
 stateDiagram-v2
