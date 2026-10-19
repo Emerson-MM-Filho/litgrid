@@ -16,6 +16,9 @@ Documentation only: no change to the code in the package.
 - A new GIF shows `burst()` and `press()` in the new "Clicks" section, which explains
   `burstSize`, `burstGlow` and `burstSecs`. A ring marks where each click happens.
 - The GIFs fill the README's column, on GitHub and on npm.
+- The README shows its images by their path in the repository (`docs/media/...`), so each
+  branch and pull request shows its own. npm turns those paths into addresses on the
+  repository's default branch.
 - The editor's GIF encoder has a delta mode, off in the editor, which writes only what
   changed between frames; `npm run docs:media` uses it to keep the longer GIFs small.
 
