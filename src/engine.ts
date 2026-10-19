@@ -2,7 +2,7 @@
 // Everything that used to be a global lives in this closure, so two canvases on one page are independent.
 // Nothing here runs at import time: the browser is touched only inside createEngine.
 import { DEFAULTS, FORMATS, svgText } from "./config";
-import type { Band, LitgridOptions, MediaInput, Settings, ShapeTarget } from "./types";
+import type { Band, LightInfo, LightState, LightTarget, LitgridOptions, MediaInput, PointerInfo, Settings, ShapeTarget } from "./types";
 
 export interface EngineOptions extends LitgridOptions {
   /** Size the drawing from `settings.format` (the editor) instead of the canvas. */
@@ -24,7 +24,6 @@ type Drawable = HTMLImageElement | HTMLVideoElement | HTMLCanvasElement;
 
 const hex = (h: string) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 const isLight = ([r, g, b]: number[]) => (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.5;
-const BACK_SECS = 0.8;
 
 export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}) {
   const { media: src = null, size = null, pointer = canvas, formatSize = false } = opts;
@@ -44,16 +43,59 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
   let W = 1920, H = 1080, cols = 0, rows = 0, noise = new Float32Array(0), frame = 0, t = 0;
   let media: Drawable | null = null, mediaW = 0, mediaH = 0, mediaCam = false;
   let dirty = true;
-  // on: the pointer is over the stage; back: it left, and the shape glides from where it was (fx, fy) to its drift
-  const mouse = { x: 0, y: 0, tx: 0, ty: 0, on: false, back: false, fx: 0, fy: 0, at: 0 };
+  // ---------- the light: where it is and who drives it ----------
+  // the pointer in client pixels (cx, cy), and the light's smoothed follow position (x, y) in drawing pixels.
+  // on: the pointer is on the page; seen: it has been, at least once
+  const mouse = { cx: 0, cy: 0, x: 0, y: 0, on: false, seen: false };
+  // where the light was drawn last, in drawing pixels, and the size and stretch it was drawn with
+  const lit = { x: 0, y: 0, size: S.shapeSize, sx: S.stretchX, sy: S.stretchY };
+  // light.set: the page drives the light; any field left out keeps its value
+  let manual: { x: number; y: number; size: number | null; sx: number | null; sy: number | null } | null = null;
+  // after light.release, the size, the stretch and (without following) the position glide back from where they were
+  let glide: { at: number; x: number; y: number; size: number; sx: number; sy: number } | null = null;
+  const GLIDE_SECS = 0.8;
   function releasePointer() {
     if (!mouse.on) return;
-    Object.assign(mouse, { on: false, back: true, fx: mouse.x, fy: mouse.y, at: performance.now() });
+    mouse.on = false;   // the light rests where the pointer left
     dirty = true;
   }
-  const following = () => S.followMouse && (mouse.on || mouse.back);
   function driftPos(): [number, number] {
     return [S.shapeX * W + S.drift * W * Math.sin(t * 2 * Math.PI / 7), S.shapeY * H + S.drift * H * 0.5 * Math.cos(t * 2 * Math.PI / 9)];
+  }
+  // client pixels to drawing pixels and back, through the canvas' rectangle on screen, so a canvas larger
+  // than the viewport, offset by scroll or drawn at another resolution still lands where the pointer is
+  const rect = () => canvas.getBoundingClientRect();
+  const toDrawing = (x: number, y: number, b = rect()): [number, number] => [(x - b.left) / b.width * W, (y - b.top) / b.height * H];
+  const toClient = (x: number, y: number, b = rect()): [number, number] => [b.left + x / W * b.width, b.top + y / H * b.height];
+  function lightState(): LightState {
+    if (manual) return "manual";
+    if (still || !S.animate) return "still";
+    if (S.followMouse && mouse.on) return "following";
+    if (S.followMouse && !mouse.seen) return "waiting";
+    return "resting";
+  }
+  // moves the light one frame: where it is, and the size and stretch it is drawn with
+  function stepLight() {
+    const state = lightState();
+    let x: number, y: number, size = S.shapeSize, sx = S.stretchX, sy = S.stretchY;
+    if (manual) {
+      ({ x, y } = manual);
+      size = manual.size ?? size; sx = manual.sx ?? sx; sy = manual.sy ?? sy;
+    } else if (state === "following" || (state === "still" && S.followMouse && mouse.on)) {
+      const [tx, ty] = toDrawing(mouse.cx, mouse.cy);
+      const k = S.animate ? 1 - S.smoothing : 1;
+      mouse.x += (tx - mouse.x) * k; mouse.y += (ty - mouse.y) * k;
+      x = mouse.x; y = mouse.y;
+    } else if (S.followMouse && mouse.seen) { x = mouse.x; y = mouse.y; }   // resting where the pointer left
+    else if (S.followMouse) { x = S.shapeX * W; y = S.shapeY * H; }      // waiting, without drifting
+    else [x, y] = driftPos();
+    if (glide) {
+      const e = S.animate ? Math.min(1, (performance.now() - glide.at) / 1000 / GLIDE_SECS) : 1, s = e * e * (3 - 2 * e);
+      if (!(S.followMouse && mouse.seen)) { x = glide.x + (x - glide.x) * s; y = glide.y + (y - glide.y) * s; }
+      size = glide.size + (size - glide.size) * s; sx = glide.sx + (sx - glide.sx) * s; sy = glide.sy + (sy - glide.sy) * s;
+      if (e >= 1) glide = null;
+    }
+    Object.assign(lit, { x, y, size, sx, sy });
   }
   const svgs: Record<ShapeTarget, SvgSlot> = { light: { img: null, w: 1, h: 1, ver: 0, stretch: false, src: null }, cell: { img: null, w: 1, h: 1, ver: 0, stretch: false, src: null } };
   const [lightBuf, lb] = mk(), [lightSq, lq] = mk();
@@ -131,7 +173,7 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
       g.addColorStop(0, "#fff"); g.addColorStop(1, "#6a6a6a");
       lq.fillStyle = g; lq.fillRect(0, 0, size, size);
     }
-    const m = Math.min(W, H), ex = Math.round(Math.max(0, S.stretchX) * m * k), ey = Math.round(Math.max(0, S.stretchY) * m * k);
+    const m = Math.min(W, H), ex = Math.round(Math.max(0, lit.sx) * m * k), ey = Math.round(Math.max(0, lit.sy) * m * k);
     const w = size + ex, h = size + ey;
     lightBuf.width = w; lightBuf.height = h;
     if (!ex && !ey) lb.drawImage(lightSq, 0, 0);
@@ -260,10 +302,8 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
     }
     if (overlay && S.light !== "none") {
       const b = burstLevel();
-      const r = Math.max(1, S.shapeSize * Math.min(W, H) * (1 + S.pulse * Math.sin(t * 2 * Math.PI / 2.4)) * (1 + S.burstSize * b));
-      let x, y;
-      if (following()) { x = mouse.x; y = mouse.y; }
-      else [x, y] = driftPos();
+      const r = Math.max(1, lit.size * Math.min(W, H) * (1 + S.pulse * Math.sin(t * 2 * Math.PI / 2.4)) * (1 + S.burstSize * b));
+      const { x, y } = lit;
       updateMotion(x, y);
       if (S.trail) drawTrail(x, y, r, 1 + S.burstGlow * b);   // any movement leaves a trail: the mouse, the drift or whatever moves the shape
       else { trail.length = 0; drawLight(x, y, r, 1 + S.burstGlow * b); }
@@ -285,16 +325,7 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
 
   // each cell is the SVG silhouette in its color; a hollow cell is the same silhouette with the core shrunk inside it
   function render() {
-    if (S.followMouse && mouse.back) {
-      // a fixed-length glide: chasing the moving drift with the follow delay would always lag behind it
-      const e = S.animate ? Math.min(1, (performance.now() - mouse.at) / 1000 / BACK_SECS) : 1, s = e * e * (3 - 2 * e);
-      const [dx, dy] = driftPos();
-      mouse.x = mouse.fx + (dx - mouse.fx) * s; mouse.y = mouse.fy + (dy - mouse.fy) * s;
-      if (e >= 1) mouse.back = false;
-    } else if (following()) {
-      const k = S.animate ? 1 - S.smoothing : 1;
-      mouse.x += (mouse.tx - mouse.x) * k; mouse.y += (mouse.ty - mouse.y) * k;
-    }
+    stepLight();
     const data = drawScene();
     const cpx = cellImg!.data, dpx = dotImg!.data;   // dim dots on their own layer: they stay out of the glow
     cell32!.fill(0); dot32!.fill(0);
@@ -419,9 +450,9 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
   const listen = (target: EventTarget, ev: string, fn: (e: any) => void, o?: AddEventListenerOptions) => { target.addEventListener(ev, fn, o); listeners.push([target, ev, fn, o]); };
   const move = (e: PointerEvent) => {
     if (still) return;
-    const b = canvas.getBoundingClientRect();
-    mouse.tx = (e.clientX - b.left) / b.width * W; mouse.ty = (e.clientY - b.top) / b.height * H;
-    if (!mouse.on) { if (!mouse.back) { mouse.x = mouse.tx; mouse.y = mouse.ty; } mouse.on = true; mouse.back = false; }
+    mouse.cx = e.clientX; mouse.cy = e.clientY;
+    // coming onto the page, the light sets off from where it is: no jump
+    if (!mouse.on) { mouse.x = lit.x; mouse.y = lit.y; mouse.on = mouse.seen = true; }
     if (S.followMouse) dirty = true;
   };
   listen(pointer, "pointermove", move);
@@ -470,7 +501,7 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
         if (frame % S.flickerEvery === 0) reroll();
         render(); drew = true; dirty = false;
       }
-    } else if (dirty || bursting() || mouse.back || trail.length > 1 || (dfm && dfm.s > 1.01) || (media && media.tagName === "VIDEO" && !(media as HTMLVideoElement).paused)) { render(); drew = true; dirty = false; }
+    } else if (dirty || bursting() || glide || trail.length > 1 || (dfm && dfm.s > 1.01) || (media && media.tagName === "VIDEO" && !(media as HTMLVideoElement).paused)) { render(); drew = true; dirty = false; }
     if (drew && !done && loaded()) { done = true; resolveReady(); }
     opts.onFrame?.(now, drew);
     raf = requestAnimationFrame(loop);
@@ -501,6 +532,32 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
     snapshot(type = "image/png", quality?: number) { render(); return canvas.toDataURL(type, quality); },
     setMedia,
     info: () => ({ width: W, height: H, cols, rows }),
+    light: {
+      get(): LightInfo {
+        const [x, y] = toClient(lit.x, lit.y);
+        return { state: lightState(), x, y, element: null };
+      },
+      set(p: LightTarget = {}) {
+        if (still) return;   // with reduced motion the light doesn't move
+        const b = rect(), cur = manual ?? { x: lit.x, y: lit.y, size: null, sx: null, sy: null };
+        let { x, y } = cur;
+        if (p.x != null || p.y != null) {
+          const [cx, cy] = toClient(cur.x, cur.y, b);
+          [x, y] = toDrawing(p.x ?? cx, p.y ?? cy, b);
+        }
+        manual = { x, y, size: p.size ?? cur.size, sx: p.stretchX ?? cur.sx, sy: p.stretchY ?? cur.sy };
+        glide = null; dirty = true;
+      },
+      release() {
+        if (!manual) return;
+        // following picks up from where the light is; the rest glides back to the settings
+        glide = { at: performance.now(), x: lit.x, y: lit.y, size: lit.size, sx: lit.sx, sy: lit.sy };
+        mouse.x = lit.x; mouse.y = lit.y;
+        if (S.followMouse) mouse.seen = true;
+        manual = null; dirty = true;
+      },
+    },
+    pointer: (): PointerInfo => ({ x: mouse.cx, y: mouse.cy, on: mouse.on }),
     destroy() {
       stopped = true; running = false; io?.disconnect();
       if (raf) cancelAnimationFrame(raf); raf = 0;

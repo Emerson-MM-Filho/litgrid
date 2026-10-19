@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Light control</title>
+<style>
+  body { margin: 0; background: #000; }
+  /* taller than the viewport, offset from the top, and drawn at half the displayed resolution */
+  canvas { display: block; width: 100%; height: 2400px; margin-top: 300px; }
+</style></head>
+<body>
+<canvas id="lit"></canvas>
+<div style="height: 600px"></div>
+<script type="module">
+  import { createLitgrid } from "/dist/litgrid.js";
+  const canvas = document.getElementById("lit");
+  window.lg = createLitgrid(canvas, {
+    size: [Math.round(canvas.clientWidth / 2), 1200],
+    pointer: window,
+    settings: { text: "", followMouse: true, smoothing: 0.94, drift: 0.2, shapeSize: 0.08, shapeX: 0.5, shapeY: 0.2, stepX: 16, stepY: 16, gapX: 2, gapY: 2 },
+  });
+  window.lg.ready.then(() => { window.__ready = true; });
+</script>
+</body>
+</html>

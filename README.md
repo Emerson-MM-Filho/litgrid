@@ -112,11 +112,33 @@ shape without stretching its corners, so a round light becomes a rounded bar wit
 falloff. The trail, the deformation and the burst follow the stretched shape.
 
 On a phone the page keeps scrolling: a vertical swipe scrolls, and a tap or a sideways
-drag moves the light. When the pointer leaves, the light eases back to its drift.
+drag moves the light. With `followMouse` on, the light waits at `shapeX`/`shapeY` (without
+drifting) until the pointer first comes, and when the pointer leaves the window it rests
+where the pointer left.
 Nothing is drawn while the canvas is off screen, and with reduced motion the canvas
 shows a still frame. `lg.ready` resolves after the first full frame, `lg.update()`
 changes settings, `lg.snapshot()` returns the frame as a data URL, and `lg.destroy()`
 stops the frame loop and removes every listener the instance added.
+
+### Reading and driving the light
+
+`lg.light.get()` returns `{ state, x, y, element }`: where the light is, in client (viewport)
+pixels, mapped through the canvas' rectangle on screen, so a canvas larger than the
+viewport or offset by scrolling reports where the light really is. `state` is one of:
+
+- `"waiting"`: following is on and the pointer has not been on the page yet.
+- `"following"`: it follows the pointer.
+- `"resting"`: the pointer left the window and the light stays where it left (or following
+  is off and the light sits at `shapeX`/`shapeY`, with its drift).
+- `"manual"`: the page drives it.
+- `"still"`: reduced motion, or animation off.
+
+`lg.light.set({ x, y, stretchX, stretchY, size })` takes control: `x` and `y` in client
+pixels, `stretchX`, `stretchY` and `size` in the units of the `stretchX`, `stretchY` and
+`shapeSize` settings, and any of them can be left out. The light stops following and goes
+where it is told until `lg.light.release()`, which hands control back from where the light
+is, with no jump. `lg.pointer` is a read-only `{ x, y, on }`: where the instance thinks the
+pointer is, in client pixels, and whether it is on the page.
 
 **Porting from `Litgrid.mount`:** call `createLitgrid(canvas, options)` (or
 `Litgrid.createLitgrid` from the IIFE) with the same options, and `destroy()` instead of
