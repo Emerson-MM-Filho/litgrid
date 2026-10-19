@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>litgrid media</title>
+<!-- the editor's font, so the scene text reads as it does in the editor -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@800&family=Geist:wght@500&display=block">
+<style>
+  html, body { margin: 0; background: #000; }
+  /* the editor's stage: the canvas, with its demo buttons on top for the magnets */
+  .stage { display: grid; place-items: center; width: 800px; height: 450px; overflow: hidden; }
+  .stage > * { grid-area: 1 / 1; }
+  canvas { display: block; width: 100%; height: 100%; }
+  .demo { align-self: end; display: flex; gap: 48px; margin-bottom: 40px; }
+  .demo[hidden] { display: none; }
+  .demo button {
+    font: 500 15px Geist, system-ui, sans-serif; color: #ebe7e1; background: rgba(0, 0, 0, 0.35);
+    border: 1px solid #22243a; border-radius: 999px; padding: 10px 18px;
+  }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <canvas id="lit"></canvas>
+  <div class="demo" id="demo" hidden>
+    <button type="button">Get started</button>
+    <button type="button">Pricing</button>
+    <button type="button">Docs</button>
+  </div>
+</div>
+<script>
+  // the page's time is driven by hand: performance.now and requestAnimationFrame only move when advance() says,
+  // so every run sees the same frame times
+  (() => {
+    let now = 0, id = 0, queue = new Map();
+    performance.now = () => now;
+    window.requestAnimationFrame = (cb) => { queue.set(++id, cb); return id; };
+    window.cancelAnimationFrame = (n) => { queue.delete(n); };
+    // ms of time, in frames of a 60 Hz display (16 ms, so that 80 ms is exactly five)
+    window.advance = (ms) => {
+      for (let left = ms; left > 0; left -= 16) {
+        now += Math.min(16, left);
+        const due = queue; queue = new Map();
+        for (const cb of due.values()) cb(now);
+      }
+    };
+  })();
+</script>
+<script type="module">
+  // the package as published: the ES module build in dist/
+  const lib = await import("/dist/litgrid.js");
+  window.lib = lib;
+  // a seeded Math.random, so the grid's flicker noise is the same on every run
+  window.seed = (n) => {
+    let a = n >>> 0;
+    Math.random = () => { a = (a + 0x6d2b79f5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  };
+  // starts an instance on the stage; the caller drives the clock. pointer: "window" listens on the window
+  // w, h: the stage in CSS pixels; scale: drawing pixels per CSS pixel
+  window.mount = (w, h, scale, settings, options = {}) => {
+    if (options.pointer === "window") options = { ...options, pointer: window };
+    window.seed(1);
+    const stage = document.getElementById("stage");
+    stage.style.width = `${w}px`; stage.style.height = `${h}px`;
+    document.getElementById("demo").hidden = !options.magnets;
+    window.lg?.destroy();
+    window.lg = lib.createLitgrid(document.getElementById("lit"), { size: [w * scale, h * scale], settings, ...options });
+    window.isReady = false;
+    window.lg.ready.then(() => { window.isReady = true; });
+  };
+  window.rect = (sel) => { const r = document.querySelector(sel).getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; };
+  await document.fonts.load('800 100px "Unbounded"');
+  await document.fonts.load('500 15px "Geist"');
+  window.loaded = true;
+</script>
+</body>
+</html>
