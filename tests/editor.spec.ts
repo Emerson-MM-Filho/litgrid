@@ -54,6 +54,21 @@ test("WebMCP tools change settings and export", async ({ page }) => {
   expect(png.ok).toBe(true);
 });
 
+test("the editor exports a looping GIF the browser can decode", async ({ page }) => {
+  await page.goto("/dist-app/index.html");
+  await page.waitForFunction(() => Object.keys((window as any).__tools).length === 6);
+  const gif = await page.evaluate(() => (window as any).__tools.export_media.execute({ format: "gif", seconds: 1, fps: 10, width: 160, includeData: true }));
+  expect(gif).toMatchObject({ ok: true, mimeType: "image/gif" });
+  const bytes = Buffer.from(gif.dataUrl.split(",")[1], "base64");
+  expect(bytes.subarray(0, 6).toString("ascii")).toBe("GIF89a");
+  expect(bytes.includes(Buffer.from("NETSCAPE2.0"))).toBe(true);
+  // the browser reads it at the width asked for
+  const size = await page.evaluate((src) => new Promise<number[]>((resolve, reject) => {
+    const im = new Image(); im.onload = () => resolve([im.naturalWidth, im.naturalHeight]); im.onerror = reject; im.src = src;
+  }), gif.dataUrl);
+  expect(size).toEqual([160, 90]);
+});
+
 test("the embed page renders through the library", async ({ page }) => {
   await page.goto("/dist-app/embed.html");
   await page.waitForTimeout(800);
