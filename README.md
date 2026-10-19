@@ -55,29 +55,35 @@ it is safe to import on a server.
 
 ### React
 
-Create the instance in an effect and destroy it in the cleanup:
+Create the instance in an effect and destroy it in the cleanup; a second effect passes new
+settings to `update()` (keep the settings object stable, with `useMemo` or state, so it
+only runs when they change):
 
 <!-- example: examples/react/Litgrid.tsx -->
 ```tsx
 import { useEffect, useRef } from "react";
-import { createLitgrid, type Settings } from "@ampulla/litgrid";
+import { createLitgrid, type Litgrid as Instance, type Settings } from "@ampulla/litgrid";
 
 export function Litgrid({ settings }: { settings?: Partial<Settings> }) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const lg = useRef<Instance>(null);
   useEffect(() => {
-    const lg = createLitgrid(canvas.current!, { settings });
-    return () => lg.destroy();
+    lg.current = createLitgrid(canvas.current!, { settings });
+    return () => lg.current?.destroy();
   }, []);
+  useEffect(() => { if (settings) lg.current?.update(settings); }, [settings]);
   return <canvas ref={canvas} style={{ width: "100%", aspectRatio: "16 / 9" }} />;
 }
 ```
 
 ### Vue
 
+Create it in `onMounted`, destroy it in `onBeforeUnmount`, and `watch` the settings:
+
 <!-- example: examples/vue/Litgrid.vue -->
 ```vue
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { createLitgrid, type Litgrid, type Settings } from "@ampulla/litgrid";
 
 const props = defineProps<{ settings?: Partial<Settings> }>();
@@ -85,6 +91,7 @@ const canvas = ref<HTMLCanvasElement>();
 let lg: Litgrid | undefined;
 onMounted(() => { lg = createLitgrid(canvas.value!, { settings: props.settings }); });
 onBeforeUnmount(() => lg?.destroy());
+watch(() => props.settings, (s) => { if (s) lg?.update(s); }, { deep: true });
 </script>
 
 <template>
@@ -102,15 +109,17 @@ Import the package anywhere, and create the instance only in the browser: in an 
 ```tsx
 "use client";
 import { useEffect, useRef } from "react";
-import { createLitgrid, type Settings } from "@ampulla/litgrid";
+import { createLitgrid, type Litgrid as Instance, type Settings } from "@ampulla/litgrid";
 
 // rendered on the server as a plain <canvas>; the instance only exists in the browser
 export function Litgrid({ settings }: { settings?: Partial<Settings> }) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const lg = useRef<Instance>(null);
   useEffect(() => {
-    const lg = createLitgrid(canvas.current!, { settings });
-    return () => lg.destroy();
+    lg.current = createLitgrid(canvas.current!, { settings });
+    return () => lg.current?.destroy();
   }, []);
+  useEffect(() => { if (settings) lg.current?.update(settings); }, [settings]);
   return <canvas ref={canvas} style={{ width: "100%", aspectRatio: "16 / 9" }} />;
 }
 ```
