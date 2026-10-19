@@ -57,7 +57,8 @@
     "test": "playwright test",
     "build:examples": "vite build -c examples/react/vite.config.ts && vite build -c examples/vue/vite.config.ts && vite build -c examples/ssr/vite.config.ts",
     "check:readme": "node scripts/check-readme.mjs",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "docs:media": "npm run build && node scripts/docs-media.mjs"
   },
   "engines": {
     "node": ">=18"
