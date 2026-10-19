@@ -1,5 +1,7 @@
 # Litgrid
 
+<img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/hero.gif" width="640" alt="The litgrid effect: a sparkle of light moves over the word Litgrid on a grid of cells, lighting them up and leaving a trail">
+
 A grid of cells that lights up with the light in the scene: dark becomes a dim dot, mid
 becomes a solid cell, and bright becomes a hollow, lit cell, with glow and scanlines on
 top. It's the CRT/LED panel look, rebuilt in the browser with the 2D canvas, as a
@@ -169,17 +171,65 @@ the same in every format.
 | Group | Settings |
 |---|---|
 | Scene | `text`, `textSize`, `textX`, `textY`, `volume` (darkens the text toward the bottom), `ambient`, `overlay` (text and light on top of media), `format` (the editor's sizes, when no `size` is given), `mirror` (webcam) |
-| Light | `light` (`sparkle`, `sphere`, `ring`, `square`, `diamond`, `hourglass`, `custom` or `none`), `svgLight` (the SVG for `custom`), `svgMode` (`silhouette` or `tones`), `shapeX`, `shapeY`, `shapeSize`, `spin`, `stretchX`, `stretchY` (stretch the middle and keep the corners, so a round light becomes a rounded bar) |
+| Light | `light` (`sparkle`, `sphere`, `ring`, `square`, `diamond`, `hourglass`, `custom` or `none`; see [Light shapes](#light-shapes)), `svgLight` (the SVG for `custom`), `svgMode` (`silhouette` or `tones`), `shapeX`, `shapeY`, `shapeSize`, `spin`, `stretchX`, `stretchY` (stretch the middle and keep the corners, so a round light becomes a rounded bar) |
 | Following | `followMouse`, `smoothing` (the follow delay) |
 | Trail and deformation | `trail`, `trailDur`, `trailStrength`, `trailTaper`, `trailSpacing`, `deform`, `deformAmount`, `deformMax` |
 | Burst | `burstSize`, `burstGlow`, `burstSecs` |
-| Cell | `cellShape` (`square`, `circle`, `diamond`, `cross`, `line` or `custom`), `svgCell`, `stepX`, `stepY`, `gapX`, `gapY`, `mode` (`fixed`, `variable` or `solid`), `offBelow`, `hollowAbove`, `outline`, `dot`, `core` |
-| Color | `colorSource` (`palette` or `media`), `bg`, `c0` to `c4` (dark to lit), `contrast`; `PRESETS` has the editor's palettes |
+| Cell | `cellShape` (`square`, `circle`, `diamond`, `cross`, `line` or `custom`; see [Cell shapes](#cell-shapes)), `svgCell`, `stepX`, `stepY`, `gapX`, `gapY`, `mode` (`fixed`, `variable` or `solid`), `offBelow`, `hollowAbove`, `outline`, `dot`, `core` |
+| Color | `colorSource` (`palette` or `media`), `bg`, `c0` to `c4` (dark to lit), `contrast`; `PRESETS` has the editor's palettes ([Catalog](#presets)) |
 | Glow | `bloom`, `bloomWide`, `scanlines` |
 | Motion | `animate`, `fps`, `fpsUnlimited`, `pulse`, `drift`, `flicker`, `flickerEvery` |
 | Magnets | `magnets`, `magnetMode`, `magnetReach`, `magnetBorder`, `magnetTime`, `anchor`, `svgMagnet` (the round shape a light becomes while it wraps a magnet; empty is the built-in sphere) |
 
+## Catalog
+
+Every image here is real output of the package, rendered from the exported constants by
+`npm run docs:media`, so the names are exactly the ones to use in code.
+
+### Presets
+
+`PRESETS` holds the editor's palettes: the background, the five colors and the glow. Spread one into
+`settings`: `settings: { ...PRESETS["Violet dusk"] }`. Each image lights up the `sphere` shape, which
+runs through every level of the palette.
+
+| Preview | Name |
+|---|---|
+| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/preset-terracotta-on-night.webp" width="320" alt="The Terracotta on night preset"> | `"Terracotta on night"` |
+| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/preset-terracotta-on-black.webp" width="320" alt="The Terracotta on black preset"> | `"Terracotta on black"` |
+| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/preset-violet-dusk.webp" width="320" alt="The Violet dusk preset"> | `"Violet dusk"` |
+| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/preset-light.webp" width="320" alt="The Light preset"> | `"Light"` |
+| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/preset-ink-on-paper.webp" width="320" alt="The Ink on paper preset"> | `"Ink on paper"` |
+
+### Light shapes
+
+The values of `light`, in the `svgMode` the editor picks for each (`LIGHT_SHAPES[name].mode`).
+`"custom"` uses `svgLight`, and `"none"` leaves only the text.
+
+| Preview | `light` | `svgMode` |
+|---|---|---|
+| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/light-sparkle.webp" width="320" alt="The Sparkle light shape"> | `"sparkle"` | `"silhouette"` |
+| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/light-sphere.webp" width="320" alt="The Sphere light shape"> | `"sphere"` | `"tones"` |
+| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/light-ring.webp" width="320" alt="The Ring light shape"> | `"ring"` | `"tones"` |
+| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/light-square.webp" width="320" alt="The Square light shape"> | `"square"` | `"silhouette"` |
+| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/light-diamond.webp" width="320" alt="The Diamond light shape"> | `"diamond"` | `"silhouette"` |
+| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/light-hourglass.webp" width="320" alt="The Hourglass light shape"> | `"hourglass"` | `"silhouette"` |
+
+### Cell shapes
+
+The values of `cellShape`, shown on a coarser grid (`stepX` and `stepY` at 20) so one cell can be
+seen. `"custom"` uses `svgCell`.
+
+| Preview | `cellShape` |
+|---|---|
+| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/cell-square.webp" width="320" alt="The Square cell shape"> | `"square"` |
+| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/cell-circle.webp" width="320" alt="The Circle cell shape"> | `"circle"` |
+| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/cell-diamond.webp" width="320" alt="The Diamond cell shape"> | `"diamond"` |
+| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/cell-cross.webp" width="320" alt="The Cross cell shape"> | `"cross"` |
+| <img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/cell-line.webp" width="320" alt="The Horizontal line cell shape"> | `"line"` |
+
 ## Magnets and the anchor
+
+<img src="https://raw.githubusercontent.com/ampulla-tech/litgrid/main/docs/media/magnet.gif" width="640" alt="The pointer passes over three buttons; each one catches the light, which wraps it in a rounded bar, and lets it go">
 
 ```js
 const lg = createLitgrid(canvas, {
@@ -309,6 +359,7 @@ npm run build:app       # the editor, into dist-app/
 npm run build:examples  # the README's examples
 npm run typecheck
 npm run check:readme    # the README's examples match the files
+npm run docs:media      # the README's images, into docs/media/
 npm test                # Playwright: fixtures, examples and the editor (build all first)
 ```
 
@@ -318,7 +369,11 @@ npm test                # Playwright: fixtures, examples and the editor (build a
 - `app/` is the editor, a Vite app that imports the library from source.
 - `examples/`, `fixtures/` and `tests/` are the README's examples, the pages the tests drive,
   and the Playwright suite.
-- `docs/flows/light-states.md` draws the light's states.
+- `docs/flows/light-states.md` draws the light's states, and `docs/media/` holds the README's
+  images. `npm run docs:media` builds the package and renders every one of them again in headless
+  Chromium, from the exported presets and shapes, with the time stepped by hand and a seeded
+  random, so the same code gives the same files. A test fails when a preset or a shape has no
+  image or no README row.
 
 `.github/workflows/ci.yml` checks every push and pull request; `pages.yml` publishes the
 editor to GitHub Pages from `main`; `release.yml` publishes the package to npm from a

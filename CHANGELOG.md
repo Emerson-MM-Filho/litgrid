@@ -4,6 +4,17 @@ All notable changes to this package are recorded here. The package follows
 [semantic versioning](https://semver.org/); while it is `0.x`, a minor version may change
 the API.
 
+## 0.1.1
+
+Documentation only: no change to the code in the package.
+
+- The README opens with a GIF of the effect, shows a magnet wrapping and releasing buttons
+  in a second GIF, and has a catalog with an image of every preset, light shape and cell
+  shape next to its exact name. The images load from the repository, so they render on
+  npm too, and stay out of the package.
+- `npm run docs:media` renders every one of those images from the current code, and a test
+  fails when a preset or a shape has no image or no README row.
+
 ## 0.1.0
 
 The first release as a package.
