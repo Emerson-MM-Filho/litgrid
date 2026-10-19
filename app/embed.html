@@ -28,12 +28,10 @@
   <div class="filler"><p>Scroll down and back: the drawing stops while the grid is out of view.</p></div>
 </main>
 
-<script src="js/config.js"></script>
-<script src="js/render.js"></script>
-<script src="js/embed.js"></script>
-<script>
+<script type="module">
+  import { createLitgrid } from "../src/index";
   // any part of the JSON from "Copy settings"; the colors here are a hand-picked palette, not a preset
-  Litgrid.mount(document.getElementById("lit"), {
+  createLitgrid(document.getElementById("lit"), {
     settings: {
       text: "", light: "hourglass", followMouse: true, drift: 0.2, shapeX: 0.5, shapeY: 0.5, shapeSize: 0.3,
       stepX: 14, stepY: 14, gapX: 3, gapY: 3,

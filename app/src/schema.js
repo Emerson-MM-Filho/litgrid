@@ -1,0 +1,77 @@
+// ---------- the editor's control panel, described as data: [key, type, label, …] per group ----------
+import { CELL_SHAPES, FORMATS, LIGHT_SHAPES } from "../../src/index";
+
+const names = (lib, extra) => Object.assign(Object.fromEntries(Object.entries(lib).map(([k, v]) => [k, v.name])), extra);
+
+export const SCHEMA = [
+  ["Scene", [
+    ["format", "select", "Format", Object.keys(FORMATS)],
+    ["text", "text", "Text"],
+    ["textSize", "range", "Text size", 0.05, 0.9, 0.01],
+    ["textX", "range", "Text: horizontal", 0, 1, 0.01],
+    ["textY", "range", "Text: vertical", 0, 1, 0.01],
+    ["volume", "range", "Text volume (darkens toward the bottom)", 0, 1, 0.01],
+    ["ambient", "range", "Ambient light", 0, 0.4, 0.01],
+    ["overlay", "check", "Text and shape on top of media"],
+    ["mirror", "check", "Mirror the webcam"],
+  ]],
+  ["Shape", [
+    ["light", "select", "Shape", [...Object.keys(LIGHT_SHAPES), "custom", "none"], names(LIGHT_SHAPES, { custom: "My SVG", none: "None (text only)" })],
+    ["svgPanel", "light"],
+    ["svgMode", "select", "The SVG becomes", ["silhouette", "tones"], { silhouette: "Lit silhouette (ignores the SVG colors)", tones: "The SVG's own tones (light lights up, dark stays off)" }],
+    ["followMouse", "check", "Follow the mouse (or finger)"],
+    ["smoothing", "range", "Follow delay", 0, 0.97, 0.01],
+    ["trail", "check", "Trail (fading tail wherever the shape moves)"],
+    ["trailDur", "range", "Trail: duration (s)", 0.1, 3, 0.05],
+    ["trailStrength", "range", "Trail: strength", 0, 1, 0.01],
+    ["trailTaper", "range", "Trail: taper at the tip", 0, 1, 0.01],
+    ["trailSpacing", "range", "Trail: spacing between shapes (2 = touching)", 0.1, 5, 0.05],
+    ["deform", "check", "Deform with the force of movement"],
+    ["deformAmount", "range", "Deform: sensitivity", 0, 3, 0.01],
+    ["deformMax", "range", "Deform: max stretch", 1, 4, 0.05],
+    ["shapeX", "range", "Horizontal", 0, 1, 0.01],
+    ["shapeY", "range", "Vertical", 0, 1, 0.01],
+    ["shapeSize", "range", "Size", 0.1, 3, 0.01],
+    ["spin", "range", "Spin (turns per second)", -1, 1, 0.01],
+    ["stretchX", "range", "Stretch: width (keeps the corners)", 0, 3, 0.01],
+    ["stretchY", "range", "Stretch: height (keeps the corners)", 0, 3, 0.01],
+    ["burstSize", "range", "Burst on click: growth", 0, 3, 0.05],
+    ["burstGlow", "range", "Burst on click: extra brightness", 0, 3, 0.05],
+    ["burstSecs", "range", "Burst on click: duration (s)", 0.1, 2, 0.05],
+  ]],
+  ["Cell", [
+    ["cellShape", "select", "Cell shape", [...Object.keys(CELL_SHAPES), "custom"], names(CELL_SHAPES, { custom: "My SVG" })],
+    ["svgPanel", "cell"],
+    ["stepX", "range", "Width (px)", 4, 48, 1],
+    ["stepY", "range", "Height (px)", 4, 48, 1],
+    ["gapX", "range", "Gap between columns (px)", 0, 16, 1],
+    ["gapY", "range", "Gap between rows (px)", 0, 16, 1],
+    ["mode", "select", "How brightness becomes a cell", ["fixed", "variable", "solid"], { fixed: "Fixed: off, solid, hollow", variable: "Size follows brightness", solid: "Always solid" }],
+    ["offBelow", "range", "Below this, dim dot", 0, 1, 0.01],
+    ["hollowAbove", "range", "Above this, hollow", 0, 1.01, 0.01],
+    ["outline", "range", "Outline width (px)", 1, 8, 1],
+    ["dot", "range", "Dim dot size (px)", 0, 12, 1],
+    ["core", "range", "Hollow core brightness", 0, 1, 0.01],
+  ]],
+  ["Color", [
+    ["presets"],
+    ["colorSource", "select", "Color source", ["palette", "media"], { palette: "Palette below (by brightness)", media: "Original media color" }],
+    ["swatches"],
+    ["contrast", "range", "Contrast (brightness curve)", 0.3, 3, 0.01],
+  ]],
+  ["Glow", [
+    ["bloom", "range", "Near glow", 0, 2.5, 0.01],
+    ["bloomWide", "range", "Wide glow", 0, 2.5, 0.01],
+    ["scanlines", "range", "Scanlines", 0, 0.8, 0.01],
+  ]],
+  ["Motion", [
+    ["animate", "check", "Animate"],
+    ["fps", "range", "Frames per second", 4, 60, 1],
+    ["fpsUnlimited", "check", "Unlimited fps (as fast as the screen refreshes)"],
+    ["pulse", "range", "Shape pulse", 0, 0.4, 0.01],
+    ["drift", "range", "Shape drift", 0, 0.4, 0.01],
+    ["flicker", "range", "Cell flicker", 0, 0.5, 0.01],
+    ["flickerEvery", "range", "Flicker changes every (frames)", 1, 30, 1],
+  ]],
+];
+export const SWATCHES = [["bg", "bg"], ["c0", "dark"], ["c1", "low"], ["c2", "mid"], ["c3", "high"], ["c4", "lit"]];

@@ -7,41 +7,37 @@ the 2D canvas.
 
 ## Running it
 
-Live at https://emerson-mm-filho.github.io/litgrid/ (the webcam works there).
+The editor is live at https://ampulla-tech.github.io/litgrid/ (the webcam works there).
 
-There is no build step and there are no dependencies: the app lives in `app/`,
-open `app/index.html` in a browser.
-
-On your machine, the webcam only works when the page is served from `localhost`:
+The repository is the `@ampulla/litgrid` package plus the editor that uses it:
 
 ```sh
-cd app
-python3 -m http.server 8765
+npm install
+npm run dev        # the editor, with the library from source
+npm run build      # the package: dist/litgrid.js (ESM), dist/litgrid.iife.js and the types
+npm run build:app  # the editor, into dist-app/
+npm run typecheck
+npm test           # the browser fixtures (build both first)
 ```
-
-Then open http://localhost:8765.
 
 ## Files
 
-Everything the page needs is in `app/`:
+- `src/`: the library, in TypeScript.
+  - `index.ts`: the public entry, `createLitgrid`.
+  - `engine.ts`: the canvas pipeline (scene, grid, light, trail, deformation), the frame
+    loop and the pointer, all inside one instance.
+  - `config.ts`: presets, formats, the built-in SVG shapes and the default settings.
+  - `types.ts`: the public types.
+- `app/`: the editor, a Vite app. `src/main.js` holds the buttons, media and webcam,
+  `src/panel.js` builds the controls from `src/schema.js`, `src/export.js` does PNG, video
+  and the GIF encoder, and `src/webmcp.js` the tools for AI agents. `embed.html` shows the
+  renderer on a page of its own, without the editor.
+- `fixtures/` and `tests/`: pages that load the built package, and the Playwright suite
+  that drives them and the built editor.
 
-- `index.html`: the page markup.
-- `style.css`: the layout and the light and dark frames.
-- `js/config.js`: presets, formats, the built-in SVG shapes, the settings
-  schema and the saved settings.
-- `js/panel.js`: builds the control panel from the schema.
-- `js/render.js`: the canvas pipeline (scene, grid, light, trail, deformation).
-- `js/export.js`: PNG, video and the GIF encoder.
-- `js/webmcp.js`: the tools for AI agents.
-- `js/app.js`: the frame loop, the buttons, media and webcam, and the start.
-- `js/embed.js` and `embed.html`: the renderer on another page, without the editor.
-
-They are plain scripts, not ES modules, so the page still opens straight from
-disk. They share their top-level names and load in the order listed in
-`index.html`.
-
-`.github/workflows/pages.yml` publishes `app/` to GitHub Pages on every push to
-`main`.
+`.github/workflows/ci.yml` typechecks, builds and runs the fixtures on every push and pull
+request. `.github/workflows/pages.yml` builds the editor and publishes it to GitHub Pages on
+every push to `main`.
 
 ## What you can change
 
@@ -67,21 +63,28 @@ width you pick.
 
 Settings are kept in the browser. "Reset" goes back to the defaults.
 
-## Embedding
+## Using the package
 
-`embed.html` shows the renderer on a page of its own, without the editor. Load three
-scripts and mount it on a canvas:
+Each canvas gets its own instance; importing the package never touches the browser.
+
+```js
+import { createLitgrid } from "@ampulla/litgrid";
+
+const lg = createLitgrid(document.getElementById("lit"), {
+  settings: { text: "", followMouse: true, bg: "#0c0a09", c4: "#ffffff" },
+  media: "scene.png",
+});
+// later
+lg.destroy();
+```
+
+Without a bundler, the IIFE build exposes `window.Litgrid`:
 
 ```html
 <canvas id="lit"></canvas>
-<script src="js/config.js"></script>
-<script src="js/render.js"></script>
-<script src="js/embed.js"></script>
+<script src="dist/litgrid.iife.js"></script>
 <script>
-  const lg = Litgrid.mount(document.getElementById("lit"), {
-    settings: { text: "", followMouse: true, bg: "#0c0a09", c4: "#ffffff" },
-    media: "scene.png",
-  });
+  const lg = Litgrid.createLitgrid(document.getElementById("lit"), { settings: { followMouse: true } });
 </script>
 ```
 
@@ -106,16 +109,18 @@ long. `lg.press(true)` swells it the same way and holds it there, for as long as
 button stays down; `lg.press(false)` lets it settle from wherever it was (in the editor,
 holding the stage plays it). `stretchX` and `stretchY` stretch the
 shape without stretching its corners, so a round light becomes a rounded bar with the same
-falloff: to wrap the light around a button, set the size to half the button's height and
-stretch the width by the rest. The trail, the deformation and the burst follow the
-stretched shape.
+falloff. The trail, the deformation and the burst follow the stretched shape.
 
 On a phone the page keeps scrolling: a vertical swipe scrolls, and a tap or a sideways
 drag moves the light. When the pointer leaves, the light eases back to its drift.
 Nothing is drawn while the canvas is off screen, and with reduced motion the canvas
 shows a still frame. `lg.ready` resolves after the first full frame, `lg.update()`
-changes settings, `lg.snapshot()` returns the frame as a data URL, and `lg.stop()`
-ends it. There is one canvas per page, because the renderer keeps its state in globals.
+changes settings, `lg.snapshot()` returns the frame as a data URL, and `lg.destroy()`
+stops the frame loop and removes every listener the instance added.
+
+**Porting from `Litgrid.mount`:** call `createLitgrid(canvas, options)` (or
+`Litgrid.createLitgrid` from the IIFE) with the same options, and `destroy()` instead of
+`stop()`. Several canvases on one page now work.
 
 ## For AI agents (WebMCP)
 
