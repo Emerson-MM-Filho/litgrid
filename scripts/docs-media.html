@@ -13,7 +13,7 @@
   canvas { display: block; width: 100%; height: 100%; }
   .demo { align-self: end; display: flex; gap: 48px; margin-bottom: 40px; }
   .demo[hidden] { display: none; }
-  /* the hero's caption: the exact code value of what is on screen, in a corner of every frame */
+  /* a caption: the exact code value of what is on screen, in a corner of every frame */
   .caption {
     align-self: start; justify-self: start; margin: 14px; pointer-events: none;
     font: 500 13px/1 "Geist Mono", ui-monospace, monospace; color: #ebe7e1; white-space: pre;
@@ -37,9 +37,9 @@
 <div class="stage" id="stage">
   <canvas id="lit"></canvas>
   <div class="demo" id="demo" hidden>
-    <button type="button" id="cta">Get started</button>
-    <button type="button">Pricing</button>
-    <button type="button">Docs</button>
+    <button type="button">Primary</button>
+    <button type="button">Secondary</button>
+    <button type="button">Tertiary</button>
   </div>
   <div class="caption" id="caption"></div>
 </div>
@@ -84,22 +84,10 @@
     window.lg?.destroy();
     window.caption("");
     Object.assign(ring, { kind: null, at: 0 });
-    // onSvgReport is the editor's hook: it says when a new light shape has been decoded (see change)
-    window.lg = lib.createLitgrid(document.getElementById("lit"), { size: [w * scale, h * scale], settings, ...options, onSvgReport: (target, msg) => window.svgReport?.(target, msg) });
+    window.lg = lib.createLitgrid(document.getElementById("lit"), { size: [w * scale, h * scale], settings, ...options });
     window.isReady = false;
     window.lg.ready.then(() => { window.isReady = true; });
   };
-  // changes settings; a new light shape decodes in real time, so this resolves only once it is in, before the clock moves
-  window.change = (settings) => new Promise((resolve, reject) => {
-    if (!("light" in settings)) { window.lg.update(settings); resolve(); return; }
-    const timer = setTimeout(() => reject(new Error(`the light shape ${settings.light} did not load`)), 5000);
-    window.svgReport = (target, msg) => {
-      if (target !== "light") return;
-      clearTimeout(timer); window.svgReport = null;
-      msg === "SVG applied." ? resolve() : reject(new Error(msg));
-    };
-    window.lg.update(settings);
-  });
   // the click ring: "tap" shrinks and fades, "down" shrinks and stays, "up" grows and fades. It sits where the
   // mouse is (moved by the script, in client pixels, the same as the stage's: the stage is at the page's corner)
   const ring = { kind: null, at: 0, x: 0, y: 0 };

@@ -12,7 +12,7 @@ const ROOT = new URL("..", import.meta.url).pathname;
 const ORIGIN = "http://litgrid.media";
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" };
 const STILL = [640, 360];   // catalog stills, in drawing pixels: shown 320 px wide in the README, so sharp on a 2x display
-// the GIFs, in CSS pixels: the hero is wider than 16:9, a banner across the README's column. Their frames are taken
+// the GIFs, in CSS pixels: the hero and the click are wider than 16:9, a banner across the README's column. Their frames are taken
 // at GIF_SCALE screenshot pixels per CSS pixel (960 wide, so they stay sharp shown at the column's full width) from
 // a drawing at DRAW times the CSS size, the grid's density in the editor on a 2x display
 const HERO = [640, 320], MAGNET = [640, 360];
@@ -21,10 +21,7 @@ const GIF_SCALE = 1.5, DRAW = 2;
 // glows no longer redraw most of the frame, which more than halves the files
 const TOLERANCE = 8;
 const FPS = 12.5;           // 80 ms a frame: a whole number of the GIF's hundredths of a second
-// the hero is about 20 s long, so it runs at 100 ms a frame to stay within its budget
-const HERO_FPS = 10;
-// a list that starts after its first entry (the default) and ends on it
-const rotate = (list) => [...list.slice(1), list[0]];
+const HERO_FPS = 10;        // the hero is about 8 s long: at 100 ms a frame it stays well within its budget
 
 const written = [];
 function save(name, bytes) {
@@ -127,6 +124,9 @@ for (const key of Object.keys(CELL_SHAPES)) await still(page, stillFile("cell", 
 
 // ---------- the GIFs ----------
 const gifPage = await openPage(GIF_SCALE);
+// the word in the middle of the frame: the default textX (0.36) leaves room for the light on the right in the
+// editor's 16:9 layout, but in a banner the word reads better centred, with the buttons' row centred below it
+const CENTRE = 0.5;
 const ease = (x) => x * x * (3 - 2 * x);
 // a pointer path from stops ([x, y], seconds to get there, seconds to stay), eased between them: where(sec),
 // its length and when it arrives at each stop
@@ -149,64 +149,47 @@ async function move(page, xy) {
   await page.mouse.move(...xy);
   await page.evaluate(([x, y]) => window.pointerAt(x, y), xy);
 }
-// events at a time (seconds) in the loop: a caption, settings to change, or a click ("burst()", "press(true)",
-// "press(false)"), each written exactly as the code that does it. Returns a step(f) for record
+// events at a time (seconds) in the loop: a caption, or a click ("burst()", "press(true)", "press(false)"),
+// each written exactly as the code that does it. Returns a step(f) for record
 function timeline(events, fps) {
   const at = new Map();
   for (const e of events) { const f = Math.round(e.at * fps); at.set(f, [...(at.get(f) || []), e]); }
   return async (page, f) => {
     for (const e of at.get(f) || []) {
-      if (e.settings) await page.evaluate((s) => window.change(s), e.settings);
       if (e.caption != null) await page.evaluate((c) => window.caption(c), e.caption);
       if (e.click) await page.evaluate((c) => window.click(c), e.click);
     }
   };
 }
 
-// hero: a showcase of the API, one phase after another, each frame captioned with the exact code value on screen.
-// The light is born on the anchor, follows the pointer, runs through every light shape and every preset (both read
-// from the exported constants, so a new one shows up by itself), swells on a click and on a held press, is caught
-// by the buttons (one of them clicked), and ends where it began.
+// hero: the default scene, its sparkle following the pointer along a figure eight over the word, and a row of
+// buttons that catch it: the loop starts and ends with the middle one holding it, and visits the other two
 {
-  const page = gifPage, q = JSON.stringify;
-  const options = { pointer: "window", magnets: "button", anchor: "#cta" };
-  await mount(page, HERO, DRAW, { followMouse: true }, options);
-  const [b1, b2, b3] = [await centre(page, "#cta"), await centre(page, ".demo button:nth-child(2)"), await centre(page, ".demo button:nth-child(3)")];
-  const above = (await page.evaluate(() => window.rect(".demo"))).y - 90;   // out of the buttons' reach
-  const events = [];
-  let t = 0;
-  const phase = (secs, ...list) => { for (const e of list) events.push({ ...e, at: t + (e.after || 0) }); t += secs; };
-  phase(1, { caption: `anchor: ${q(options.anchor)}` });
-  const loose = t;   // the pointer moves from here on
-  phase(1.2, { caption: "followMouse: true" });
-  // each list starts after the default and ends on it, so the scene is back to the defaults for the next phase
-  for (const [key, s] of rotate(Object.entries(LIGHT_SHAPES))) phase(0.9, { caption: `light: ${q(key)}, svgMode: ${q(s.mode)}`, settings: { light: key, svgMode: s.mode } });
-  for (const key of rotate(Object.keys(PRESETS))) phase(0.9, { caption: `...PRESETS[${q(key)}]`, settings: { ...PRESETS[key] } });
-  phase(1, { caption: "burst()" }, { click: "burst()", after: 0.2 });
-  phase(0.9, { caption: "press(true)" }, { click: "press(true)", after: 0.1 });
-  phase(0.9, { caption: "press(false)", click: "press(false)" });
-  // the magnets: onto each button and away from it, a click on the middle one, and the anchor's button last,
-  // where the loop starts again
-  const caught = t, loop = (sec) => [HERO[0] * (0.56 + 0.3 * Math.sin(2 * Math.PI * sec / 6)), HERO[1] * (0.36 + 0.17 * Math.sin(4 * Math.PI * sec / 6))];
-  const magnets = glide(loop(caught - loose), [[b3, 0.6, 0.4], [[(b3[0] + b2[0]) / 2, above], 0.4, 0.1], [b2, 0.4, 1.1], [[(b2[0] + b1[0]) / 2, above], 0.4, 0.1], [b1, 0.4, 0.8]]);
-  const onB2 = magnets.arrivals[2];
-  phase(magnets.secs, { caption: `magnets: ${q(options.magnets)}` }, { caption: "burst()", click: "burst()", after: onB2 + 0.3 }, { caption: `magnets: ${q(options.magnets)}`, after: onB2 + 1.1 });
-  // the pointer: still while the anchor holds the light, then straight up off the anchor (out of the other buttons'
-  // reach) and onto a loop over the scene
-  const lift = glide(b1, [[[b1[0], above], 0.4, 0]]);
+  const page = gifPage;
+  await mount(page, HERO, DRAW, { followMouse: true, textX: CENTRE }, { pointer: "window", magnets: "button" });
+  const [b1, b2, b3] = [await centre(page, ".demo button:nth-child(1)"), await centre(page, ".demo button:nth-child(2)"), await centre(page, ".demo button:nth-child(3)")];
+  const lift = (await page.evaluate(() => window.rect(".demo"))).y - 90;   // above the buttons, out of their reach
+  const eight = (a) => [HERO[0] * (0.5 + 0.34 * Math.sin(a)), HERO[1] * (0.4 - 0.19 * Math.sin(2 * a))];
+  const mix = (p, q, k) => [p[0] + (q[0] - p[0]) * k, p[1] + (q[1] - p[1]) * k];
+  // the path, in segments of [seconds, position at u from 0 to 1]; each one eases in and out, so the joins are smooth
+  const segments = [];
+  const hold = (p, secs) => segments.push([secs, () => p]);
+  const go = (p, q, secs) => segments.push([secs, (u) => mix(p, q, ease(u))]);
+  hold(b2, 0.6);
+  go(b2, eight(0), 0.7);
+  segments.push([3.4, (u) => eight(2 * Math.PI * ease(u))]);
+  go(eight(0), b1, 0.8);
+  hold(b1, 0.5);
+  go(b1, [(b1[0] + b3[0]) / 2, lift], 0.5); go([(b1[0] + b3[0]) / 2, lift], b3, 0.5);
+  hold(b3, 0.5);
+  go(b3, [(b2[0] + b3[0]) / 2, lift], 0.4); go([(b2[0] + b3[0]) / 2, lift], b2, 0.4);
+  const secs = segments.reduce((n, [d]) => n + d, 0), N = Math.round(secs * HERO_FPS);
   const where = (sec) => {
-    if (sec < loose) return null;
-    if (sec >= caught) return magnets.where(sec - caught);
-    const s = sec - loose, from = lift.where(s), p = loop(s), w = ease(Math.min(1, Math.max(0, (s - 0.3) / 0.8)));
-    return [from[0] + (p[0] - from[0]) * w, from[1] + (p[1] - from[1]) * w];
+    for (const [d, at] of segments) { if (sec < d) return at(sec / d); sec -= d; }
+    return b2;
   };
-  const step = timeline(events, HERO_FPS);
-  await advance(page, 2000);   // the light settles on the anchor before the first frame
-  await record(page, ANIMATIONS.hero, Math.round(t * HERO_FPS), 0, async (f) => {
-    const xy = where(f / HERO_FPS);
-    if (xy) await move(page, xy);
-    await step(page, f);
-  }, HERO_FPS);
+  // the path is a loop: one round before the first kept frame, so the last frame leads into the first
+  await record(page, ANIMATIONS.hero, N, N, (f) => move(page, where(f / HERO_FPS)), HERO_FPS);
 }
 
 // magnet: the pointer passes over the editor's demo buttons, and each one catches the light and wraps it
@@ -224,8 +207,8 @@ function timeline(events, fps) {
 // click: the light under a still pointer, swelling once on burst() and held big by press(true) until press(false)
 {
   const page = gifPage;
-  await mount(page, HERO, DRAW, { followMouse: true }, { pointer: "window" });
-  await move(page, [HERO[0] * 0.74, HERO[1] * 0.48]);
+  await mount(page, HERO, DRAW, { followMouse: true, textX: CENTRE }, { pointer: "window" });
+  await move(page, [HERO[0] * 0.83, HERO[1] * 0.48]);   // right of the word, with room for the swell
   await advance(page, 2000);   // the light arrives and its trail fades before the first frame
   const step = timeline([
     { at: 0, caption: "burst()" }, { at: 0.4, click: "burst()" },

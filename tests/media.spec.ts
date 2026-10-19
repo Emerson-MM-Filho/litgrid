@@ -52,8 +52,8 @@ test("the hero is the README's first image, and runs within its length", () => {
     else if (gif[i] === 0x2c) i = skipSubBlocks(i + 10 + table(gif[i + 9]) + 1);
     else throw new Error(`unexpected GIF block 0x${gif[i].toString(16)} at ${i}`);
   }
-  expect(hundredths / 100).toBeGreaterThanOrEqual(15);
-  expect(hundredths / 100).toBeLessThanOrEqual(20);
+  expect(hundredths / 100).toBeGreaterThanOrEqual(6);
+  expect(hundredths / 100).toBeLessThanOrEqual(10);
 });
 
 // the encoder behind every GIF: in delta mode only the changed rectangle is written, with unchanged pixels

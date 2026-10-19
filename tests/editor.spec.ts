@@ -90,10 +90,10 @@ test("magnet and anchor controls drive the stage and land in Copy settings", asy
   await expect(page.locator("#lightStat")).toContainText("anchored · ");
   await expect(page.locator("#lightStat")).toContainText("#demo-cta");
   await page.locator("#f-magnetReach").fill("60");
-  const pricing = page.getByRole("button", { name: "Pricing" });
-  await pricing.hover();
+  const secondary = page.getByRole("button", { name: "Secondary" });
+  await secondary.hover();
   await expect(page.locator("#lightStat")).toContainText('held');
-  await expect(page.locator("#lightStat")).toContainText('button "Pricing"');
+  await expect(page.locator("#lightStat")).toContainText('button "Secondary"');
   await page.waitForTimeout(600);
   await page.locator("#f-magnetTime").scrollIntoViewIfNeeded();
   await page.screenshot({ path: "test-results/evidence/editor-magnets.png" });
