@@ -1,6 +1,6 @@
 {
   "name": "@ampulla/litgrid",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A canvas grid of cells that lights up with the scene: the CRT/LED panel look, framework-agnostic.",
   "keywords": [
     "canvas",
