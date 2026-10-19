@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>ESM fixture</title>
+<style>body { margin: 0; background: #000; } canvas { display: block; width: 960px; height: 540px; }</style></head>
+<body>
+<canvas id="lit"></canvas>
+<script type="module">
+  import { createLitgrid } from "/dist/litgrid.js";
+  window.lg = createLitgrid(document.getElementById("lit"), { size: [960, 540] });
+  window.lg.ready.then(() => { window.__ready = true; });
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+{
+  "name": "@ampulla/litgrid",
+  "version": "0.0.0",
+  "description": "A canvas grid of cells that lights up with the scene: the CRT/LED panel look, framework-agnostic.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/litgrid.js",
+  "module": "./dist/litgrid.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/litgrid.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "unpkg": "./dist/litgrid.iife.js",
+  "jsdelivr": "./dist/litgrid.iife.js",
+  "sideEffects": false,
+  "files": [
+    "dist/litgrid.js",
+    "dist/litgrid.iife.js",
+    "dist/*.d.ts"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ampulla-tech/litgrid.git"
+  },
+  "homepage": "https://ampulla-tech.github.io/litgrid/",
+  "bugs": {
+    "url": "https://github.com/ampulla-tech/litgrid/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "dev": "vite --config vite.app.config.ts",
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "build:app": "vite build --config vite.app.config.ts",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p fixtures/types/tsconfig.json",
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  }
+}

@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>IIFE fixture</title>
+<style>body { margin: 0; background: #000; } canvas { display: block; width: 960px; height: 540px; }</style></head>
+<body>
+<canvas id="lit"></canvas>
+<!-- only the IIFE build: it exposes window.Litgrid -->
+<script src="/dist/litgrid.iife.js"></script>
+<script>
+  window.lg = Litgrid.createLitgrid(document.getElementById("lit"), { size: [960, 540] });
+  window.lg.ready.then(() => { window.__ready = true; });
+</script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+# typecheck, build and the browser fixtures on every push and pull request; the built editor is kept as a preview
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run build:app
+      - run: npm run typecheck
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+        env:
+          CI: true
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: test-results
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v7
+        with:
+          name: editor-preview
+          path: dist-app/

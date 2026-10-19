@@ -45,12 +45,6 @@
   <form class="panel" id="panel" onsubmit="return false"></form>
 </div>
 
-<!-- plain scripts, not modules, so the page also opens straight from disk; they share top-level names and load in this order -->
-<script src="js/config.js"></script>
-<script src="js/panel.js"></script>
-<script src="js/render.js"></script>
-<script src="js/export.js"></script>
-<script src="js/webmcp.js"></script>
-<script src="js/app.js"></script>
+<script type="module" src="./src/main.js"></script>
 </body>
 </html>

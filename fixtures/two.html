@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Two instances</title>
+<style>body { margin: 0; background: #000; display: flex; gap: 8px; } canvas { display: block; width: 480px; height: 360px; }</style></head>
+<body>
+<canvas id="a"></canvas>
+<canvas id="b"></canvas>
+<script type="module">
+  import { createLitgrid, PRESETS } from "/dist/litgrid.js";
+  const common = { text: "", followMouse: true, drift: 0.2, pulse: 0.2, shapeSize: 0.3, shapeX: 0.5, shapeY: 0.5 };
+  window.a = createLitgrid(document.getElementById("a"), { settings: { ...common, ...PRESETS["Terracotta on night"] } });
+  window.b = createLitgrid(document.getElementById("b"), { settings: { ...common, ...PRESETS["Ink on paper"], light: "sphere", svgMode: "tones" } });
+  Promise.all([a.ready, b.ready]).then(() => { window.__ready = true; });
+</script>
+</body>
+</html>
