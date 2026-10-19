@@ -16,9 +16,9 @@ and pass that JSON to the package.
 npm i @ampulla/litgrid
 ```
 
-Or straight from a CDN: `https://unpkg.com/@ampulla/litgrid@0.1` is the script-tag build,
+Or straight from a CDN: `https://unpkg.com/@ampulla/litgrid@0.2` is the script-tag build,
 which exposes `window.Litgrid`, and
-`https://cdn.jsdelivr.net/npm/@ampulla/litgrid@0.1/dist/litgrid.js` is the ES module.
+`https://cdn.jsdelivr.net/npm/@ampulla/litgrid@0.2/dist/litgrid.js` is the ES module.
 
 Each canvas gets its own instance, `createLitgrid(canvas, options)`, released with
 `destroy()`. Importing the package never touches `window`, `document` or `matchMedia`, so
@@ -31,7 +31,7 @@ it is safe to import on a server.
 <!-- example: examples/html/script.html -->
 ```html
 <canvas id="lit" style="width: 100%; aspect-ratio: 16 / 9"></canvas>
-<script src="https://unpkg.com/@ampulla/litgrid@0.1"></script>
+<script src="https://unpkg.com/@ampulla/litgrid@0.2"></script>
 <script>
   const lg = Litgrid.createLitgrid(document.getElementById("lit"), {
     settings: { text: "Hello", followMouse: true },
@@ -47,7 +47,7 @@ it is safe to import on a server.
 ```html
 <canvas id="lit" style="width: 100%; aspect-ratio: 16 / 9"></canvas>
 <script type="module">
-  import { createLitgrid } from "https://cdn.jsdelivr.net/npm/@ampulla/litgrid@0.1/dist/litgrid.js";
+  import { createLitgrid } from "https://cdn.jsdelivr.net/npm/@ampulla/litgrid@0.2/dist/litgrid.js";
 
   const lg = createLitgrid(document.getElementById("lit"), {
     settings: { text: "Hello", followMouse: true },
@@ -310,6 +310,13 @@ viewport or offset by scrolling reports where the light really is; `size`, `stre
   is off and the light sits at `shapeX`/`shapeY`, with its drift).
 - `"manual"`: the page drives it.
 - `"still"`: reduced motion, or animation off.
+
+When the canvas moves on screen, as one that scrolls with the page does, or one taller than
+the viewport that the page moves while scrolling, the light stays tied to what it follows. A
+following light, or one resting where the pointer left, stays put on screen, so it remains
+under a still pointer, trail included; a light held by a magnet or the anchor moves with that
+element; and a light that drifts, waits, glides back or is driven by `light.set()` moves with
+the canvas. Nothing has to be called for this: move the canvas, and the light keeps up.
 
 `lg.light.set({ x, y, stretchX, stretchY, size })` takes control: `x` and `y` in client
 pixels, `stretchX`, `stretchY` and `size` in the units of the `stretchX`, `stretchY` and

@@ -5,8 +5,8 @@ import fs from "node:fs";
 
 // the CDN URLs in the README answer with the local build
 async function cdn(page: Page) {
-  await page.route(/^https:\/\/unpkg\.com\/@ampulla\/litgrid@0\.1$/, (r) => r.fulfill({ path: "dist/litgrid.iife.js", contentType: "text/javascript" }));
-  await page.route("https://cdn.jsdelivr.net/npm/@ampulla/litgrid@0.1/dist/litgrid.js", (r) => r.fulfill({ path: "dist/litgrid.js", contentType: "text/javascript", headers: { "access-control-allow-origin": "*" } }));
+  await page.route(/^https:\/\/unpkg\.com\/@ampulla\/litgrid@0\.2$/, (r) => r.fulfill({ path: "dist/litgrid.iife.js", contentType: "text/javascript" }));
+  await page.route("https://cdn.jsdelivr.net/npm/@ampulla/litgrid@0.2/dist/litgrid.js", (r) => r.fulfill({ path: "dist/litgrid.js", contentType: "text/javascript", headers: { "access-control-allow-origin": "*" } }));
 }
 const lit = (page: Page) => expect.poll(() => page.evaluate(() => {
   const c = document.querySelector("canvas") as HTMLCanvasElement, d = c.getContext("2d")!.getImageData(0, 0, c.width, c.height).data, s = new Set<number>();

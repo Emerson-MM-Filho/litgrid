@@ -4,6 +4,27 @@ All notable changes to this package are recorded here. The package follows
 [semantic versioning](https://semver.org/); while it is `0.x`, a minor version may change
 the API.
 
+## 0.2.0
+
+A change of behaviour, so a minor version: while the package is `0.x`, a minor version is
+where a change that can alter what a page sees goes. No API is added or removed.
+
+- The light stays tied to what it follows when the canvas moves on screen. Its carried-over
+  state (the follow position, the spring's centre, the glide, the trail and the velocity
+  behind the deformation) lived in drawing pixels, so a canvas that moved under a still
+  pointer (one that scrolls with the page, or one taller than the viewport that the page
+  moves while scrolling) dragged the light away with it, and it eased back: the light, its
+  trail and its deformation jumped. Now:
+  - following, or resting where the pointer left: the light is tied to the screen, and stays
+    under a still pointer;
+  - held by a magnet or the anchor: it is tied to that element and moves with it, scroll
+    included; the spring only catches and lets go;
+  - drifting with `followMouse` off, driven by `light.set()`, gliding back after a release,
+    or waiting: it is tied to the canvas, as before.
+- With `animate: false`, a canvas that moves under a light tied to the screen is drawn again,
+  so the light stays under the pointer.
+- The README's CDN addresses point at `@0.2`.
+
 ## 0.1.2
 
 Documentation only: no change to the code in the package.
