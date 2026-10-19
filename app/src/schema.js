@@ -73,5 +73,14 @@ export const SCHEMA = [
     ["flicker", "range", "Cell flicker", 0, 0.5, 0.01],
     ["flickerEvery", "range", "Flicker changes every (frames)", 1, 30, 1],
   ]],
+  ["Magnets", [
+    ["magnetDemo"],
+    ["magnets", "text", "Magnets (CSS selector; empty is off)", 80],
+    ["anchor", "text", "Anchor, where the light is born (CSS selector)", 80],
+    ["magnetMode", "select", "Magnet mode", ["wrap", "pull"], { wrap: "Wrap: a rounded bar around the element", pull: "Pull: move the centre only" }],
+    ["magnetReach", "range", "Reach (px from the edge)", 0, 200, 1],
+    ["magnetBorder", "range", "Border around the element (px, wrap)", 0, 120, 1],
+    ["magnetTime", "range", "Travel time (s)", 0.05, 2, 0.05],
+  ]],
 ];
 export const SWATCHES = [["bg", "bg"], ["c0", "dark"], ["c1", "low"], ["c2", "mid"], ["c3", "high"], ["c4", "lit"]];

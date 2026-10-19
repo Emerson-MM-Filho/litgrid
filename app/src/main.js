@@ -31,7 +31,8 @@ const ed = {
 
 let fpsN = 0, fpsT = 0, fpsReal = 0, lastNow = 0;
 ed.engine = createEngine(cv, {
-  settings: S, formatSize: true, reducedMotion: false,
+  // the stage, not only the canvas, so the pointer over the demo buttons still counts
+  settings: S, formatSize: true, reducedMotion: false, pointer: cv.parentElement,
   onSvgReport: (target, msg) => { const r = ed.reports[target]; ed.reports[target] = null; r?.(msg); },
   onFrame(now, drew) {
     const dt = Math.min(0.25, (now - lastNow) / 1000 || 0); lastNow = now;
@@ -55,6 +56,7 @@ function changed() {
   const [fr, fg, fb] = [1, 3, 5].map(i => parseInt(S.bg.slice(i, i + 2), 16));
   document.documentElement.classList.toggle("light", (0.299 * fr + 0.587 * fg + 0.114 * fb) / 255 > 0.5);
   cv.style.touchAction = S.followMouse ? "none" : "";
+  document.getElementById("demo").hidden = !S.magnets && !S.anchor;
 }
 // holding a button on the stage swells the shape and keeps it big until the release (press in the library)
 cv.addEventListener("pointerdown", (e) => { if (S.followMouse) cv.setPointerCapture(e.pointerId); ed.engine.press(true); });

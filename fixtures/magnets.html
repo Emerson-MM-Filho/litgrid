@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Magnets</title>
+<style>
+  body { margin: 0; background: #fff; font: 16px system-ui, sans-serif; }
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: -1; }
+  main { padding: 120px 80px; }
+  .row { display: flex; gap: 260px; margin-top: 260px; }
+  button { font: inherit; padding: 12px 24px; border: 1px solid #c2410c; background: #fff; border-radius: 999px; }
+  #cta { padding: 16px 40px; }
+  .spacer { height: 2000px; }
+</style></head>
+<body>
+<canvas id="lit"></canvas>
+<main>
+  <button id="cta">Start here</button>
+  <div class="row">
+    <button id="b1">One</button>
+    <button id="b2">Two</button>
+    <button id="b3">Three</button>
+  </div>
+  <div inert><button id="dead" style="margin-top: 40px">Inert</button></div>
+  <div class="spacer"></div>
+</main>
+<script type="module">
+  // ?build=iife loads only the IIFE build (window.Litgrid); otherwise the ESM build
+  const iife = new URLSearchParams(location.search).get("build") === "iife";
+  if (iife) await new Promise((resolve) => { const s = document.createElement("script"); s.src = "/dist/litgrid.iife.js"; s.onload = resolve; document.head.append(s); });
+  const { createLitgrid, PRESETS } = iife ? window.Litgrid : await import("/dist/litgrid.js");
+  const canvas = document.getElementById("lit");
+  window.events = [];
+  window.lg = createLitgrid(canvas, {
+    size: [innerWidth, innerHeight], pointer: window,
+    settings: { ...PRESETS["Light"], text: "", followMouse: true, light: "sparkle", svgMode: "silhouette", shapeSize: 0.06, trail: false, deform: false, pulse: 0, stepX: 6, stepY: 6, gapX: 1, gapY: 1, outline: 1, dot: 1 },
+    magnets: "button", anchor: "#cta",
+  });
+  window.lg.on("magnet", (el) => window.events.push(el ? el.id : null));
+  window.lg.ready.then(() => { window.__ready = true; });
+</script>
+</body>
+</html>

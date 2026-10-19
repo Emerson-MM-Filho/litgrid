@@ -17,7 +17,15 @@
 
 <div class="app">
   <div class="stage-wrap">
-    <div class="stage"><canvas id="stage" width="1920" height="1080" aria-label="Effect preview"></canvas></div>
+    <div class="stage">
+      <canvas id="stage" width="1920" height="1080" aria-label="Effect preview"></canvas>
+      <!-- buttons to try magnets and the anchor on; shown while either is set -->
+      <div class="demo" id="demo" hidden>
+        <button type="button" id="demo-cta">Get started</button>
+        <button type="button">Pricing</button>
+        <button type="button">Docs</button>
+      </div>
+    </div>
     <div class="bar">
       <button id="play" class="primary" type="button">Pause</button>
       <label class="file">Use image or video<input id="media" type="file" accept="image/*,video/*"></label>

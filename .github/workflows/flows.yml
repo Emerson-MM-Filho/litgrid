@@ -1,0 +1,27 @@
+# renders every Mermaid block under docs/, so a broken diagram fails the pull request instead of landing silently
+name: Flows
+
+on:
+  push:
+    paths: ["docs/**", ".github/workflows/flows.yml"]
+  pull_request:
+    paths: ["docs/**", ".github/workflows/flows.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - run: npm install --no-save @mermaid-js/mermaid-cli puppeteer
+      - name: Render every Mermaid block
+        run: |
+          mkdir -p /tmp/mermaid
+          for f in $(find docs -name '*.md'); do
+            npx mmdc -i "$f" -o "/tmp/mermaid/$(basename "$f")" -p .github/puppeteer.json
+          done

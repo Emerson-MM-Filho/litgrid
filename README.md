@@ -120,14 +120,60 @@ shows a still frame. `lg.ready` resolves after the first full frame, `lg.update(
 changes settings, `lg.snapshot()` returns the frame as a data URL, and `lg.destroy()`
 stops the frame loop and removes every listener the instance added.
 
+### Magnets and the anchor
+
+```js
+const lg = createLitgrid(canvas, {
+  pointer: window,
+  magnets: "a[href], button",   // a selector or a list of elements; off by default
+  anchor: "#cta",               // where the light is born
+  magnetMode: "wrap",           // "wrap" (a rounded bar around the element) or "pull" (the centre only)
+  magnetReach: 40,              // px from the element's edge
+  magnetBorder: 56,             // px added around the element in wrap mode
+  magnetTime: 0.35,             // seconds for the spring
+});
+lg.on("magnet", (el) => el?.animate([{ scale: 1 }, { scale: 1.04 }], 200));
+```
+
+The six options can also go inside `settings`, change through `update()`, and are part of
+the editor's "Copy settings".
+
+- The nearest magnet whose edge is within `magnetReach` px of the pointer catches the light.
+  It stays caught until the pointer is more than `magnetReach × 1.25 + 6` px away, or a
+  nearer magnet within reach wins, so the light does not flicker on the boundary. Elements
+  inside `[inert]` or `[hidden]`, or with no size, are ignored, and a magnet that is
+  removed, hidden or scrolled off screen lets go.
+- The light travels on a critically damped spring (`ω = 6 / magnetTime`, integrated in
+  short sub-steps), so it sets off gently and arrives without overshooting.
+- In wrap mode the light's radius becomes half of the element's shorter side plus the
+  border, and the stretch takes the rest of each side, so it frames the element. A non-round
+  light shape is drawn as the round one while it wraps (`svgMagnet` can replace that round
+  shape), and on release the stretch is zeroed in the same frame and the configured shape
+  comes back, so a sparkle never shows as a cross. Pull mode only moves the centre.
+- The `:focus-visible` element inside a magnet holds the light, so the keyboard drives it
+  too. A real mouse move takes control back; scrolling under a still mouse does not.
+- Until the pointer first moves, the anchor holds the light like a magnet while it is on
+  screen; off screen, the light waits at its position.
+- Element positions go through the canvas' rectangle on screen, so the light lands on the
+  element on a canvas larger than the viewport, offset by scrolling or drawn at another
+  resolution. Pass `pointer: window` when the magnets are outside the canvas.
+- `lg.on("magnet", fn)` calls `fn` with the element (or `null`) whenever the element
+  holding the light changes, the anchor included, and returns a function that stops
+  listening. The library never styles or transforms your elements.
+
+The states are drawn in [docs/flows/light-states.md](docs/flows/light-states.md).
+
 ### Reading and driving the light
 
-`lg.light.get()` returns `{ state, x, y, element }`: where the light is, in client (viewport)
+`lg.light.get()` returns `{ state, x, y, element, size, stretchX, stretchY }`: where the light is, in client (viewport)
 pixels, mapped through the canvas' rectangle on screen, so a canvas larger than the
-viewport or offset by scrolling reports where the light really is. `state` is one of:
+viewport or offset by scrolling reports where the light really is; `size`, `stretchX` and
+`stretchY` are what it is drawn with now, in the units of the settings. `state` is one of:
 
 - `"waiting"`: following is on and the pointer has not been on the page yet.
+- `"anchored"`: the anchor holds it, before the pointer first moves.
 - `"following"`: it follows the pointer.
+- `"held"`: a magnet holds it; `element` says which.
 - `"resting"`: the pointer left the window and the light stays where it left (or following
   is off and the light sits at `shapeX`/`shapeY`, with its drift).
 - `"manual"`: the page drives it.
@@ -136,7 +182,7 @@ viewport or offset by scrolling reports where the light really is. `state` is on
 `lg.light.set({ x, y, stretchX, stretchY, size })` takes control: `x` and `y` in client
 pixels, `stretchX`, `stretchY` and `size` in the units of the `stretchX`, `stretchY` and
 `shapeSize` settings, and any of them can be left out. The light stops following and goes
-where it is told until `lg.light.release()`, which hands control back from where the light
+where it is told, magnets included, until `lg.light.release()`, which hands control back from where the light
 is, with no jump. `lg.pointer` is a read-only `{ x, y, on }`: where the instance thinks the
 pointer is, in client pixels, and whether it is on the page.
 

@@ -52,12 +52,29 @@ export interface Settings extends Palette {
   bloom: number; bloomWide: number; scanlines: number;
   animate: boolean; fps: number; fpsUnlimited: boolean;
   pulse: number; drift: number; flicker: number; flickerEvery: number;
+  /** Elements that pull the light: a CSS selector or a list of elements. Off (`null`) by default. */
+  magnets: string | readonly Element[] | null;
+  /** `"wrap"` stretches the light into a rounded bar around the element; `"pull"` only moves its centre. */
+  magnetMode: "wrap" | "pull";
+  /** How close, in px from the element's edge, the pointer has to come for a magnet to catch the light. */
+  magnetReach: number;
+  /** Px added around the element in wrap mode. */
+  magnetBorder: number;
+  /** Seconds the damped spring takes to bring the light to a magnet. */
+  magnetTime: number;
+  /** Where the light is born: an element or a selector. It holds the light like a magnet until the pointer first moves. */
+  anchor: string | Element | null;
+  /** SVG for the bar a non-round light becomes while it wraps a magnet; empty uses the built-in sphere. */
+  svgMagnet: string;
 }
+
+/** The magnet options, which can also be passed next to `settings`. */
+export type MagnetOptions = Pick<Settings, "magnets" | "magnetMode" | "magnetReach" | "magnetBorder" | "magnetTime" | "anchor">;
 
 /** What the grid lights up from: an image or video URL, or an element to read from. */
 export type MediaInput = string | HTMLImageElement | HTMLVideoElement | HTMLCanvasElement;
 
-export interface LitgridOptions {
+export interface LitgridOptions extends Partial<MagnetOptions> {
   /** The JSON from the editor's "Copy settings", whole or in part, over the defaults. */
   settings?: Partial<Settings>;
   /** An image or video URL (another origin needs CORS), or an `<img>`, `<video>` or `<canvas>`. */
@@ -71,13 +88,15 @@ export interface LitgridOptions {
 /**
  * What the light is doing:
  * - `waiting`: following is on and the pointer has not been on the page yet; the light sits at `shapeX`/`shapeY`.
+ * - `anchored`: the anchor holds it, before the pointer is first seen.
  * - `following`: it follows the pointer.
+ * - `held`: a magnet holds it (`element` says which).
  * - `resting`: the pointer left the page and the light stays where it left (or following is off and
  *   the light sits at `shapeX`/`shapeY`, with its drift).
  * - `manual`: the page drives it with `light.set()`.
  * - `still`: reduced motion, or animation off.
  */
-export type LightState = "waiting" | "following" | "resting" | "manual" | "still";
+export type LightState = "waiting" | "anchored" | "following" | "held" | "resting" | "manual" | "still";
 
 export interface LightInfo {
   state: LightState;
@@ -86,6 +105,10 @@ export interface LightInfo {
   y: number;
   /** The element holding the light, if any. */
   element: Element | null;
+  /** The size and stretch it is drawn with now, in the units of the `shapeSize`, `stretchX` and `stretchY` settings. */
+  size: number;
+  stretchX: number;
+  stretchY: number;
 }
 
 /** What `light.set()` takes; any field left out keeps its value. */
@@ -133,6 +156,8 @@ export interface Litgrid {
   readonly light: LightControl;
   /** Where the instance thinks the pointer is (a fresh read on every access). */
   readonly pointer: PointerInfo;
+  /** Calls `fn` with the element (or `null`) whenever the element holding the light changes, the anchor included. Returns a function that stops listening. */
+  on(type: "magnet", fn: (element: Element | null) => void): () => void;
   /** Stops the frame loop and removes every listener the instance added. */
   destroy(): void;
 }

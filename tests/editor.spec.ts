@@ -64,3 +64,25 @@ test("the embed page renders through the library", async ({ page }) => {
   });
   expect(colors).toBeGreaterThan(10);
 });
+
+test("magnet and anchor controls drive the stage and land in Copy settings", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/dist-app/index.html");
+  await page.locator("summary", { hasText: "Magnets" }).click();
+  await page.getByRole("button", { name: "Try them on the demo buttons" }).click();
+  await expect(page.locator("#demo")).toBeVisible();
+  // before the pointer comes, the anchor holds the light
+  await expect(page.locator("#lightStat")).toContainText("anchored · ");
+  await expect(page.locator("#lightStat")).toContainText("#demo-cta");
+  await page.locator("#f-magnetReach").fill("60");
+  const pricing = page.getByRole("button", { name: "Pricing" });
+  await pricing.hover();
+  await expect(page.locator("#lightStat")).toContainText('held');
+  await expect(page.locator("#lightStat")).toContainText('button "Pricing"');
+  await page.waitForTimeout(600);
+  await page.locator("#f-magnetTime").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: "test-results/evidence/editor-magnets.png" });
+  await page.getByRole("button", { name: "Copy settings" }).click();
+  const copied = JSON.parse(await page.evaluate(() => navigator.clipboard.readText()));
+  expect(copied).toMatchObject({ magnets: ".demo button", anchor: "#demo-cta", magnetMode: "wrap", magnetReach: 60, magnetBorder: 56, magnetTime: 0.35 });
+});

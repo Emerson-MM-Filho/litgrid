@@ -1,7 +1,7 @@
 // ---------- engine: the renderer, its frame loop and its pointer, one per canvas ----------
 // Everything that used to be a global lives in this closure, so two canvases on one page are independent.
 // Nothing here runs at import time: the browser is touched only inside createEngine.
-import { DEFAULTS, FORMATS, svgText } from "./config";
+import { DEFAULTS, FORMATS, LIGHT_SHAPES, svgText } from "./config";
 import type { Band, LightInfo, LightState, LightTarget, LitgridOptions, MediaInput, PointerInfo, Settings, ShapeTarget } from "./types";
 
 export interface EngineOptions extends LitgridOptions {
@@ -22,6 +22,8 @@ interface TrailPoint { x: number; y: number; at: number; d: Deform | null; a: [n
 interface Lut { lut: Uint8Array; dim: Uint8Array; bg: string; light: boolean }
 type Drawable = HTMLImageElement | HTMLVideoElement | HTMLCanvasElement;
 
+// the magnet options can also be passed next to `settings`
+const MAGNET_KEYS = ["magnets", "magnetMode", "magnetReach", "magnetBorder", "magnetTime", "anchor"] as const;
 const hex = (h: string) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 const isLight = ([r, g, b]: number[]) => (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.5;
 
@@ -29,6 +31,7 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
   const { media: src = null, size = null, pointer = canvas, formatSize = false } = opts;
   const cv = canvas, ctx = canvas.getContext("2d") as Ctx;
   let S: Settings = { ...DEFAULTS, ...opts.settings };
+  for (const k of MAGNET_KEYS) if (opts[k] !== undefined) (S as any)[k] = opts[k];
   const still = opts.reducedMotion ?? (typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches);
   if (still) S.animate = false;
   const dpr = devicePixelRatio || 1;
@@ -51,12 +54,13 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
   const lit = { x: 0, y: 0, size: S.shapeSize, sx: S.stretchX, sy: S.stretchY };
   // light.set: the page drives the light; any field left out keeps its value
   let manual: { x: number; y: number; size: number | null; sx: number | null; sy: number | null } | null = null;
-  // after light.release, the size, the stretch and (without following) the position glide back from where they were
-  let glide: { at: number; x: number; y: number; size: number; sx: number; sy: number } | null = null;
+  // after light.release (or a magnet letting go without following), what was left out glides back from where it was
+  let glide: { at: number; x: number; y: number; size: number | null; sx: number | null; sy: number | null } | null = null;
   const GLIDE_SECS = 0.8;
   function releasePointer() {
     if (!mouse.on) return;
     mouse.on = false;   // the light rests where the pointer left
+    if (!byKeyboard) magnet = null;
     dirty = true;
   }
   function driftPos(): [number, number] {
@@ -67,37 +71,154 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
   const rect = () => canvas.getBoundingClientRect();
   const toDrawing = (x: number, y: number, b = rect()): [number, number] => [(x - b.left) / b.width * W, (y - b.top) / b.height * H];
   const toClient = (x: number, y: number, b = rect()): [number, number] => [b.left + x / W * b.width, b.top + y / H * b.height];
+
+  // ---------- magnets and the anchor ----------
+  // magnet: the element the pointer (or the keyboard focus) picked; holder: who holds the light this frame,
+  // the magnet or, before the pointer is first seen, the anchor
+  let magnet: Element | null = null, byKeyboard = false, lastMove: [number, number] | null = null;
+  let holder: Element | null = null;
+  const handlers = new Set<(el: Element | null) => void>();
+  const magnetList = (): Element[] => {
+    const m = S.magnets;
+    if (!m) return [];
+    if (typeof m === "string") { try { return [...document.querySelectorAll(m)]; } catch { return []; } }
+    return [...m];
+  };
+  // the magnet an element belongs to (itself or the magnet around it)
+  const magnetOf = (el: Element | null): Element | null => {
+    if (!el || !S.magnets) return null;
+    if (typeof S.magnets === "string") { try { return el.closest(S.magnets); } catch { return null; } }
+    return [...S.magnets].find(m => m.contains(el)) || null;
+  };
+  const anchorEl = (): Element | null => {
+    const a = S.anchor;
+    if (!a) return null;
+    if (typeof a === "string") { try { return document.querySelector(a); } catch { return null; } }
+    return a;
+  };
+  // usable: in the page, not inside [inert] or [hidden], with a size; onScreen: some of it in the viewport
+  const usable = (el: Element) => el.isConnected && !el.closest("[inert], [hidden]") && el.getBoundingClientRect().width > 0;
+  const onScreen = (el: Element) => { const r = el.getBoundingClientRect(); return r.height > 0 && r.bottom > 0 && r.top < innerHeight; };
+  // distance from the pointer to the element's edge, in client pixels; 0 inside it
+  const distance = (el: Element, px: number, py: number) => {
+    const r = el.getBoundingClientRect();
+    return r.width ? Math.hypot(Math.max(r.left - px, 0, px - r.right), Math.max(r.top - py, 0, py - r.bottom)) : Infinity;
+  };
+  // the nearest magnet within reach of its edge catches the light; to let go, the pointer has to move a bit
+  // further than that (reach × 1.25 + 6), or the light would catch and drop at every pixel on the boundary
+  function findMagnet() {
+    if (!S.magnets || !mouse.on || byKeyboard || still) return;
+    let near: Element | null = null, d = Infinity;
+    for (const el of magnetList()) {
+      if (el.closest("[inert], [hidden]")) continue;
+      const de = distance(el, mouse.cx, mouse.cy); if (de < d) { d = de; near = el; }
+    }
+    let next = d <= S.magnetReach ? near : null;
+    if (magnet) { const now = distance(magnet, mouse.cx, mouse.cy); if (now <= S.magnetReach * 1.25 + 6 && (!next || now <= d)) next = magnet; }
+    if (next !== magnet) dirty = true;
+    magnet = next;
+  }
+  // travel: a critically damped spring, in short sub-steps so a long frame cannot blow it up
+  const vel = { x: 0, y: 0, r: 0, ex: 0, ey: 0 };
+  function spring(from: number, to: number, v: keyof typeof vel, w: number, dt: number) {
+    for (let n = Math.ceil(dt * w / 0.3), h = dt / n; n > 0; n--) { vel[v] += (w * w * (to - from) - 2 * w * vel[v]) * h; from += vel[v] * h; }
+    return from;
+  }
+  // the held light's centre, and its radius and stretch while a magnet shapes it (drawing pixels);
+  // shaping stays on after the release until they have sprung back to the settings
+  let centre: { x: number; y: number } | null = null;
+  const form = { r: 0, ex: 0, ey: 0, on: false };
+  // wrapped round a magnet, a non-round light is drawn as the round one, so a stretched sparkle never shows as a cross
+  let barred = false;
+  const ROUND = "sphere";
+  let springAt = 0;
+
   function lightState(): LightState {
     if (manual) return "manual";
     if (still || !S.animate) return "still";
+    if (holder) return holder === magnet ? "held" : "anchored";
     if (S.followMouse && mouse.on) return "following";
     if (S.followMouse && !mouse.seen) return "waiting";
     return "resting";
   }
   // moves the light one frame: where it is, and the size and stretch it is drawn with
   function stepLight() {
+    const now = performance.now(), dt = Math.min(0.1, (now - springAt) / 1000); springAt = now;
+    const m = Math.min(W, H), b = rect(), kx = W / b.width, ky = H / b.height;
+    // who holds the light: a magnet still usable and on screen, or the anchor until the pointer is first seen
+    if (magnet && !(S.magnets && usable(magnet) && onScreen(magnet))) { magnet = null; byKeyboard = false; }
+    const anchor = anchorEl(), anchoring = !mouse.seen && !!anchor && usable(anchor) && onScreen(anchor);
+    const next = manual || still ? null : magnet || (anchoring ? anchor : null);
+    if (next !== holder) {
+      if (next && !holder) { centre = { x: lit.x, y: lit.y }; vel.x = vel.y = 0; }   // caught: it sets off from where it is
+      if (!next && holder) {
+        // let go: following picks up from where the light is; without following, it glides back to its place
+        mouse.x = lit.x; mouse.y = lit.y;
+        if (!S.followMouse) glide = { at: now, x: lit.x, y: lit.y, size: null, sx: null, sy: null };
+      }
+      holder = next;
+      for (const fn of handlers) fn(holder);
+    }
     const state = lightState();
     let x: number, y: number, size = S.shapeSize, sx = S.stretchX, sy = S.stretchY;
     if (manual) {
       ({ x, y } = manual);
       size = manual.size ?? size; sx = manual.sx ?? sx; sy = manual.sy ?? sy;
+    } else if (holder) {
+      const r = holder.getBoundingClientRect(), w = 6 / S.magnetTime;
+      const [tx, ty] = toDrawing(r.left + r.width / 2, r.top + r.height / 2, b);
+      centre!.x = spring(centre!.x, tx, "x", w, dt); centre!.y = spring(centre!.y, ty, "y", w, dt);
+      x = centre!.x; y = centre!.y;
     } else if (state === "following" || (state === "still" && S.followMouse && mouse.on)) {
-      const [tx, ty] = toDrawing(mouse.cx, mouse.cy);
+      const [tx, ty] = toDrawing(mouse.cx, mouse.cy, b);
       const k = S.animate ? 1 - S.smoothing : 1;
       mouse.x += (tx - mouse.x) * k; mouse.y += (ty - mouse.y) * k;
       x = mouse.x; y = mouse.y;
     } else if (S.followMouse && mouse.seen) { x = mouse.x; y = mouse.y; }   // resting where the pointer left
+    else if (S.followMouse && anchor && !mouse.seen) {                      // waiting at the anchor, off screen
+      const r = anchor.getBoundingClientRect();
+      [x, y] = toDrawing(r.left + r.width / 2, r.top + r.height / 2, b);
+    }
     else if (S.followMouse) { x = S.shapeX * W; y = S.shapeY * H; }      // waiting, without drifting
     else [x, y] = driftPos();
+
+    // wrap: the radius is half the element's shorter side with the border, and the stretch is the rest of each side
+    const wrap = !!holder && S.magnetMode === "wrap";
+    if (wrap || form.on) {
+      let target = { r: size * m, ex: sx * m, ey: sy * m };
+      if (wrap) {
+        const e = holder!.getBoundingClientRect(), bw = (e.width + S.magnetBorder) * kx, bh = (e.height + S.magnetBorder) * ky, r = Math.min(bw, bh) / 2;
+        target = { r, ex: bw - 2 * r, ey: bh - 2 * r };
+      }
+      if (!form.on) { Object.assign(form, { r: lit.size * m, ex: lit.sx * m, ey: lit.sy * m, on: true }); vel.r = vel.ex = vel.ey = 0; }
+      // let go: back to the light's own shape at once, with no stretch, or the stretched shape shows as a cross
+      if (!wrap && barred && S.light !== ROUND) { form.ex = target.ex; form.ey = target.ey; vel.ex = vel.ey = 0; }
+      const w = 6 / S.magnetTime;
+      form.r = Math.max(0, spring(form.r, target.r, "r", w, dt));
+      form.ex = Math.max(0, spring(form.ex, target.ex, "ex", w, dt));
+      form.ey = Math.max(0, spring(form.ey, target.ey, "ey", w, dt));
+      size = form.r / m; sx = form.ex / m; sy = form.ey / m;
+      // settled back: the settings drive the shape again
+      if (!wrap && Math.abs(form.r - target.r) + Math.abs(form.ex - target.ex) + Math.abs(form.ey - target.ey) < 0.5 && Math.abs(vel.r) + Math.abs(vel.ex) + Math.abs(vel.ey) < 1) form.on = false;
+    }
+    if (wrap !== barred) { barred = wrap; dirty = true; }
     if (glide) {
-      const e = S.animate ? Math.min(1, (performance.now() - glide.at) / 1000 / GLIDE_SECS) : 1, s = e * e * (3 - 2 * e);
-      if (!(S.followMouse && mouse.seen)) { x = glide.x + (x - glide.x) * s; y = glide.y + (y - glide.y) * s; }
-      size = glide.size + (size - glide.size) * s; sx = glide.sx + (sx - glide.sx) * s; sy = glide.sy + (sy - glide.sy) * s;
+      const e = S.animate ? Math.min(1, (now - glide.at) / 1000 / GLIDE_SECS) : 1, s = e * e * (3 - 2 * e);
+      if (!(S.followMouse && mouse.seen) && !holder) { x = glide.x + (x - glide.x) * s; y = glide.y + (y - glide.y) * s; }
+      if (glide.size !== null) size = glide.size + (size - glide.size) * s;
+      if (glide.sx !== null) sx = glide.sx + (sx - glide.sx) * s;
+      if (glide.sy !== null) sy = glide.sy + (sy - glide.sy) * s;
       if (e >= 1) glide = null;
     }
     Object.assign(lit, { x, y, size, sx, sy });
   }
-  const svgs: Record<ShapeTarget, SvgSlot> = { light: { img: null, w: 1, h: 1, ver: 0, stretch: false, src: null }, cell: { img: null, w: 1, h: 1, ver: 0, stretch: false, src: null } };
+  // the light is moving on its own (a spring or a glide), so a paused loop still has to draw
+  const moving = () => !!holder || form.on || !!glide;
+  const slot = (): SvgSlot => ({ img: null, w: 1, h: 1, ver: 0, stretch: false, src: null });
+  // bar: the round light a non-round one turns into while it wraps a magnet
+  const svgs: Record<ShapeTarget | "bar", SvgSlot> = { light: slot(), cell: slot(), bar: slot() };
+  const barSvg = () => S.svgMagnet || LIGHT_SHAPES[ROUND].svg;
+  const asBar = () => barred && S.light !== ROUND;
   const [lightBuf, lb] = mk(), [lightSq, lq] = mk();
   // a stretched shape keeps its four quarters as corners and stretches the line through its middle (nine
   // slices), so a round light becomes a rounded bar with the same falloff. lightAspect is the stamp's width
@@ -127,10 +248,13 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
   const [maskBuf, mb] = mk(true);
   const maskCache = new Map<number, Uint8Array>(); let maskVer = -1;
   let cellImg: ImageData | null = null, dotImg: ImageData | null = null, cell32: Uint32Array | null = null, dot32: Uint32Array | null = null;
-  function syncSvgs() { for (const target of ["light", "cell"] as const) { const txt = svgText(S, target); if (txt !== svgs[target].src) loadSvg(target, txt); } }
+  function syncSvgs() {
+    for (const target of ["light", "cell"] as const) { const txt = svgText(S, target); if (txt !== svgs[target].src) loadSvg(target, txt); }
+    if (S.magnets || S.anchor || svgs.bar.src) { const txt = barSvg(); if (txt !== svgs.bar.src) loadSvg("bar", txt); }
+  }
 
-  function loadSvg(target: ShapeTarget, text: string) {
-    const o = svgs[target], report = (m: string) => opts.onSvgReport?.(target, m);
+  function loadSvg(target: ShapeTarget | "bar", text: string) {
+    const o = svgs[target], report = (m: string) => { if (target !== "bar") opts.onSvgReport?.(target, m); };
     o.src = text;
     let doc: Document | null = null;
     try { doc = new DOMParser().parseFromString(text || "", "image/svg+xml"); } catch {}
@@ -163,11 +287,12 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
   }
   // the shape is rasterized once per frame; the trail stamps the same image many times
   function prepLight(r: number) {
-    if (!svgs.light.img) return false;
+    const bar = asBar() && svgs.bar.img, src = bar ? svgs.bar : svgs.light;
+    if (!src.img) return false;
     const k = scene.width / W, half = Math.max(1, Math.ceil(r * k)), size = 2 * half + 1;   // odd: one column and row in the middle
     lightSq.width = size; lightSq.height = size;
-    fitSvg(lq, svgs.light, size, size);
-    if (S.svgMode === "silhouette") {
+    fitSvg(lq, src, size, size);
+    if (!bar && S.svgMode === "silhouette") {
       lq.globalCompositeOperation = "source-in";
       const g = lq.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size * 0.6);
       g.addColorStop(0, "#fff"); g.addColorStop(1, "#6a6a6a");
@@ -453,13 +578,28 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
     mouse.cx = e.clientX; mouse.cy = e.clientY;
     // coming onto the page, the light sets off from where it is: no jump
     if (!mouse.on) { mouse.x = lit.x; mouse.y = lit.y; mouse.on = mouse.seen = true; }
-    if (S.followMouse) dirty = true;
+    // a pointer that really moves takes control back from the keyboard (a scroll under a still mouse doesn't)
+    if (!lastMove || e.clientX !== lastMove[0] || e.clientY !== lastMove[1]) byKeyboard = false;
+    lastMove = [e.clientX, e.clientY];
+    findMagnet();
+    if (S.followMouse || S.magnets) dirty = true;
   };
   listen(pointer, "pointermove", move);
   listen(pointer, "pointerdown", move);
   listen(pointer, "pointerleave", releasePointer);
   listen(pointer, "pointercancel", releasePointer);
   if (pointer !== canvas) listen(pointer, "pointerout", (e: PointerEvent) => { if (!e.relatedTarget) releasePointer(); });   // left the window
+  // scrolling brings magnets to a still pointer; keyboard focus on a magnet holds the light
+  if (typeof window !== "undefined") {
+    listen(window, "scroll", () => findMagnet(), { passive: true });
+    listen(window, "focusin", (e: FocusEvent) => {
+      if (still || !S.magnets) return;
+      let fv = false; try { fv = (e.target as Element).matches(":focus-visible"); } catch {}
+      if (!fv) return;
+      magnet = magnetOf(e.target as Element); byKeyboard = !!magnet; dirty = true;
+    });
+    listen(window, "focusout", (e: FocusEvent) => { if (magnet && magnet === magnetOf(e.target as Element)) { magnet = null; dirty = true; } });
+  }
 
   // ---------- media ----------
   let mediaReady = !src;
@@ -501,7 +641,7 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
         if (frame % S.flickerEvery === 0) reroll();
         render(); drew = true; dirty = false;
       }
-    } else if (dirty || bursting() || glide || trail.length > 1 || (dfm && dfm.s > 1.01) || (media && media.tagName === "VIDEO" && !(media as HTMLVideoElement).paused)) { render(); drew = true; dirty = false; }
+    } else if (dirty || bursting() || moving() || trail.length > 1 || (dfm && dfm.s > 1.01) || (media && media.tagName === "VIDEO" && !(media as HTMLVideoElement).paused)) { render(); drew = true; dirty = false; }
     if (drew && !done && loaded()) { done = true; resolveReady(); }
     opts.onFrame?.(now, drew);
     raf = requestAnimationFrame(loop);
@@ -522,7 +662,16 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
     still,
     /** The current settings (a copy). */
     settings: (): Settings => ({ ...S }),
-    update(next: Partial<Settings>) { S = { ...S, ...next }; if (still) S.animate = false; apply(); },
+    update(next: Partial<Settings>) {
+      if ("magnets" in next && next.magnets !== S.magnets) magnet = null;
+      S = { ...S, ...next }; if (still) S.animate = false; apply();
+    },
+    /** Hears when the element holding the light changes (a magnet, the anchor, or null). */
+    on(type: "magnet", fn: (el: Element | null) => void) {
+      if (type !== "magnet") return () => {};
+      handlers.add(fn);
+      return () => { handlers.delete(fn); };
+    },
     bands(list: Band[] | null) { bandSrc = list || []; buildLut(); dirty = true; },
     resize(next: [number, number]) { sizeOverride = next; apply(); },
     redraw() { dirty = true; },
@@ -535,7 +684,7 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
     light: {
       get(): LightInfo {
         const [x, y] = toClient(lit.x, lit.y);
-        return { state: lightState(), x, y, element: null };
+        return { state: lightState(), x, y, element: holder, size: lit.size, stretchX: lit.sx, stretchY: lit.sy };
       },
       set(p: LightTarget = {}) {
         if (still) return;   // with reduced motion the light doesn't move
@@ -562,7 +711,7 @@ export function createEngine(canvas: HTMLCanvasElement, opts: EngineOptions = {}
       stopped = true; running = false; io?.disconnect();
       if (raf) cancelAnimationFrame(raf); raf = 0;
       for (const [target, ev, fn, o] of listeners) target.removeEventListener(ev, fn, o);
-      listeners.length = 0;
+      listeners.length = 0; handlers.clear();
       if (media && media.tagName === "VIDEO") (media as HTMLVideoElement).pause();
     },
   };
