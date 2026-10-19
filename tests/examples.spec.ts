@@ -21,6 +21,22 @@ const loops = (page: Page) => page.evaluate(() => new Promise<number>((resolve) 
   raf.call(window, count);
 }));
 
+// mean brightness of the canvas, 0 to 255: the dark palette is near the bottom, "Ink on paper" near the top
+const brightness = (page: Page) => page.evaluate(() => {
+  const c = document.querySelector("canvas") as HTMLCanvasElement, d = c.getContext("2d")!.getImageData(0, 0, c.width, c.height).data;
+  let sum = 0, n = 0;
+  for (let i = 0; i < d.length; i += 4 * 31) { sum += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; n++; }
+  return sum / n;
+});
+// new settings after mounting reach the canvas: the palette swaps from dark to light
+async function swaps(page: Page) {
+  const before = await brightness(page);
+  expect(before).toBeLessThan(80);
+  await page.getByRole("button", { name: "Swap palette" }).click();
+  await expect.poll(() => brightness(page), { timeout: 10_000 }).toBeGreaterThan(180);
+  return before;
+}
+
 for (const file of ["script", "module"]) {
   test(`plain HTML (${file}) from the CDN`, async ({ page }) => {
     await cdn(page);
@@ -35,10 +51,25 @@ test("React: created in an effect, destroyed in the cleanup (StrictMode mounts t
   expect(await loops(page)).toBeCloseTo(1, 0);   // the first mount's loop was destroyed
 });
 
+test("React: settings changed after mounting reach the canvas", async ({ page }) => {
+  await page.goto("/examples/react/dist/index.html");
+  await lit(page);
+  await swaps(page);
+  expect(await loops(page)).toBeCloseTo(1, 0);   // updated in place, not created again
+  await page.screenshot({ path: "test-results/evidence/react-swapped.png" });
+});
+
 test("Vue: created in onMounted, destroyed in onBeforeUnmount", async ({ page }) => {
   await page.goto("/examples/vue/dist/index.html");
   await lit(page);
   await page.screenshot({ path: "test-results/evidence/vue.png" });
+});
+
+test("Vue: settings changed after mounting reach the canvas", async ({ page }) => {
+  await page.goto("/examples/vue/dist/index.html");
+  await lit(page);
+  await swaps(page);
+  expect(await loops(page)).toBeCloseTo(1, 0);
 });
 
 test("server rendering imports the package and renders a plain canvas", () => {
