@@ -14,7 +14,7 @@ export function registerTools(ed, exporter) {
       const opts = a.filter(o => o !== "custom");   // "custom" goes through set_custom_svg
       FIELDS[key] = { type: "string", enum: opts, description: b ? `${label}. ${opts.map(o => `${o}: ${b[o]}`).join("; ")}` : label };
     }
-    else if (type === "text") FIELDS[key] = { type: "string", maxLength: 24, description: label };
+    else if (type === "text") FIELDS[key] = { type: "string", maxLength: a || 24, description: label };
   }
   for (const [k, l] of SWATCHES) FIELDS[k] = { type: "string", pattern: "^#[0-9a-fA-F]{6}$", description: `Palette color "${l}" (hex)` };
 

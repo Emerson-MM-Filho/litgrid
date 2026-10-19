@@ -52,6 +52,7 @@ export const DEFAULTS: Settings = {
   cellShape: "square", mode: "fixed", offBelow: 0.18, hollowAbove: 0.62, outline: 2, dot: 3, core: 0.55,
   colorSource: "palette", contrast: 1, ...PRESETS["Terracotta on night"], scanlines: 0,
   animate: true, fps: 24, fpsUnlimited: true, pulse: 0.06, drift: 0, flicker: 0.05, flickerEvery: 3,
+  magnets: null, magnetMode: "wrap", magnetReach: 40, magnetBorder: 56, magnetTime: 0.35, anchor: null, svgMagnet: "",
 };
 
 export const SVG_KEY = { light: "svgLight", cell: "svgCell" } as const;

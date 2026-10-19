@@ -3,6 +3,9 @@ import { FORMATS, LIGHT_SHAPES, PRESETS } from "../../src/index";
 import { SEL_KEY, SVG_KEY, svgText } from "../../src/config";
 import { SCHEMA, SWATCHES } from "./schema";
 
+// text settings that mean "off" when empty
+const NULLABLE = { magnets: true, anchor: true };
+
 // ed: the editor's shared state ({ S, changed(), reports, playBtn })
 export function createPanel(ed) {
   const panel = document.getElementById("panel");
@@ -23,6 +26,12 @@ export function createPanel(ed) {
             p.append(bt);
           }
           box.append(p); continue;
+        }
+        if (key === "magnetDemo") {
+          const p = document.createElement("div"); p.className = "presets";
+          const bt = document.createElement("button"); bt.type = "button"; bt.textContent = "Try them on the demo buttons";
+          bt.onclick = () => { Object.assign(ed.S, { magnets: ".demo button", anchor: "#demo-cta" }); sync(); ed.changed(); };
+          p.append(bt); box.append(p); continue;
         }
         if (key === "svgPanel") {
           const target = type, id = "f-svg-" + target;
@@ -80,8 +89,8 @@ export function createPanel(ed) {
             ed.S[key] = inp.value; sync(); ed.changed();
           };
         } else {
-          inp = document.createElement("input"); inp.type = "text"; inp.maxLength = 24;
-          inp.oninput = () => { ed.S[key] = inp.value; ed.changed(); };
+          inp = document.createElement("input"); inp.type = "text"; inp.maxLength = a || 24;
+          inp.oninput = () => { ed.S[key] = inp.value || (key in NULLABLE ? null : ""); ed.changed(); };
         }
         inp.id = "f-" + key;
         inputs[key] = { el: inp, type, out, step: c };
@@ -94,7 +103,7 @@ export function createPanel(ed) {
   function sync() {
     for (const [k, f] of Object.entries(inputs)) {
       if (f.type === "check") f.el.checked = !!ed.S[k];
-      else f.el.value = ed.S[k];
+      else f.el.value = ed.S[k] ?? "";
       if (f.type === "range") f.out.textContent = fmt(ed.S[k], f.step);
     }
     for (const [target, ta] of Object.entries(editors)) if (document.activeElement !== ta) ta.value = svgText(ed.S, target);
