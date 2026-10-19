@@ -311,12 +311,14 @@ viewport or offset by scrolling reports where the light really is; `size`, `stre
 - `"manual"`: the page drives it.
 - `"still"`: reduced motion, or animation off.
 
-When the canvas moves on screen, as one that scrolls with the page does, or one taller than
-the viewport that the page moves while scrolling, the light stays tied to what it follows. A
-following light, or one resting where the pointer left, stays put on screen, so it remains
-under a still pointer, trail included; a light held by a magnet or the anchor moves with that
-element; and a light that drifts, waits, glides back or is driven by `light.set()` moves with
-the canvas. Nothing has to be called for this: move the canvas, and the light keeps up.
+When the page scrolls or moves the canvas, the light stays tied to what it follows. A
+following light, or one resting where the pointer left, lives on the page: a scroll under a
+still pointer carries it along with the page, and it eases back to the pointer, leaving its
+trail on the page, whether the canvas scrolls with the page or stays fixed behind it; a page
+repositioning a canvas taller than the viewport moves nothing on screen. A light held by a
+magnet or the anchor moves with that element, and one that drifts, waits, glides back or is
+driven by `light.set()` moves with the canvas. The trail always stays on the page. Nothing
+has to be called for this: move the canvas, and the light keeps up.
 
 `lg.light.set({ x, y, stretchX, stretchY, size })` takes control: `x` and `y` in client
 pixels, `stretchX`, `stretchY` and `size` in the units of the `stretchX`, `stretchY` and
